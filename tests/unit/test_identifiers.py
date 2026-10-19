@@ -107,7 +107,7 @@ AMOUNT_CASES = [
 
 @pytest.mark.parametrize("text,unit,paise", AMOUNT_CASES)
 def test_parse_amounts(text: str, unit: UnitScale | None, paise: int) -> None:
-    p = parse_amount(text)
+    p = parse_amount(text, cr_means="crore")
     assert p is not None, text
     assert to_paise(p, unit) == paise
 
@@ -120,8 +120,9 @@ def test_not_numbers(text: str) -> None:
 def test_cr_as_credit_marker() -> None:
     p = parse_amount("5,000.00 Cr", cr_means="credit")
     assert p is not None and to_paise(p) == 5_000_00
-    p2 = parse_amount("5,000.00 Cr")
+    p2 = parse_amount("5,000.00 Cr", cr_means="crore")
     assert p2 is not None and to_paise(p2) == 5_000 * 10_000_000 * 100
+    assert parse_amount("5,000.00 Cr") is None  # ambiguous without a declared meaning
 
 
 @pytest.mark.parametrize(

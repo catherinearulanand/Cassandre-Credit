@@ -40,7 +40,7 @@ extend-exclude = [".venv", "reports"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "UP", "S", "BLE", "N", "SIM", "RUF"]
-ignore = ["S101", "RUF001", "RUF002", "RUF003", "N818", "UP040", "UP046"]
+ignore = ["S101", "RUF001", "RUF002", "RUF003", "N818", "UP040", "UP046", "E501"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["S", "B", "N802", "N806", "E501", "RUF059", "SIM105"]

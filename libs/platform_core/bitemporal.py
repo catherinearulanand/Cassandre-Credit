@@ -44,6 +44,7 @@ class BitemporalStore(Generic[T]):
     def __init__(self, clock: Clock) -> None:
         self._clock = clock
         self._rows: dict[str, list[BitemporalRow[T]]] = {}
+        self._last_recorded: datetime | None = None
 
     def assert_fact(
         self,
@@ -60,7 +61,13 @@ class BitemporalStore(Generic[T]):
         """
         if valid_to <= valid_from:
             raise ValueError("valid_to must be after valid_from")
-        now = self._clock.now()
+        # Recorded time never goes backwards, even if the system clock is stepped back.
+        now = (
+            max(self._clock.now(), self._last_recorded)
+            if self._last_recorded
+            else self._clock.now()
+        )
+        self._last_recorded = now
         rows = self._rows.setdefault(key, [])
         version = max((r.version for r in rows), default=0) + 1
         new_rows: list[BitemporalRow[T]] = []
@@ -94,7 +101,9 @@ class BitemporalStore(Generic[T]):
         return row
 
     def get(self, key: str, as_of: date, known_at: datetime | None = None) -> T | None:
-        known = known_at or self._clock.now()
+        if known_at is not None and known_at.tzinfo is None:
+            raise ValueError("known_at must be timezone-aware")
+        known = known_at or max(self._clock.now(), self._last_recorded or self._clock.now())
         candidates = [
             r for r in self._rows.get(key, []) if r.valid_on(as_of) and r.believed_at(known)
         ]

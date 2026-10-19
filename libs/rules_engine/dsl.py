@@ -101,9 +101,11 @@ def parse(formula: str) -> Tree[Token]:
         raise DslError("formula too long")
     try:
         tree = _parser.parse(formula)
+        _check(tree, 0)
     except LarkError as exc:
         raise DslError(f"cannot parse formula {formula!r}: {exc.__class__.__name__}") from exc
-    _check(tree, 0)
+    except RecursionError as exc:
+        raise DslError("formula too deeply nested") from exc
     return tree
 
 
@@ -120,7 +122,11 @@ def _check(node: Tree[Token] | Token, depth: int) -> None:
         if name == "prior":
             if not 1 <= len(args) <= 2:
                 raise DslError("prior(x[, n]) takes 1 or 2 arguments")
-            if len(args) == 2 and not (isinstance(args[1], Tree) and args[1].data == "number"):
+            if len(args) == 2 and not (
+                isinstance(args[1], Tree)
+                and args[1].data == "number"
+                and str(args[1].children[0]).isdigit()
+            ):
                 raise DslError("prior offset must be an integer literal")
         if name in ("ttm", "abs") and len(args) != 1:
             raise DslError(f"{name} takes exactly one argument")
@@ -128,9 +134,11 @@ def _check(node: Tree[Token] | Token, depth: int) -> None:
             raise DslError("safe_div takes two arguments")
         if name in ("sum", "avg", "min", "max", "coalesce") and not args:
             raise DslError(f"{name} needs at least one argument")
+    # Only function calls and negations add nesting; a flat sum of 100 terms is not "deep".
+    nxt = depth + 1 if node.data in ("call", "neg") else depth
     for child in node.children:
         if child is not None:
-            _check(child, depth + 1)
+            _check(child, nxt)
 
 
 def _args(call: Tree[Token]) -> list[Tree[Token] | Token]:
@@ -152,12 +160,17 @@ def referenced_names(formula: str) -> set[str]:
 def validate(formula: str, definitions: dict[str, str], known_codes: frozenset[str]) -> None:
     """Static check: every name resolves to a definition or a known code; no cycles."""
 
+    done: set[str] = set()  # memoised: shared sub-definitions are checked once, not per path
+
     def visit(f: str, stack: tuple[str, ...]) -> None:
         for name in referenced_names(f):
             if name in definitions:
                 if name in stack:
                     raise DslError(f"definition cycle: {' -> '.join((*stack, name))}")
+                if name in done:
+                    continue
                 visit(definitions[name], (*stack, name))
+                done.add(name)
             elif name not in known_codes:
                 raise DslError(f"unknown variable {name!r}")
 
@@ -175,6 +188,7 @@ class Evaluator:
 
     def evaluate(self, formula: str, *, internal_dp: int = 4) -> EvalResult:
         tree = parse(formula)
+        self._lineage, self._inputs, self._steps, self._def_stack = [], {}, 0, []
         q = Decimal(1).scaleb(-internal_dp)
         with localcontext() as ctx:
             ctx.prec = 50
@@ -183,6 +197,8 @@ class Evaluator:
                 value = self._eval(tree, 0).quantize(q, rounding=ROUND_HALF_EVEN)
             except InvalidOperation as exc:
                 raise NotComputable("numeric overflow beyond supported precision") from exc
+            except RecursionError as exc:
+                raise DslError("formula too deeply nested") from exc
         return EvalResult(value, list(dict.fromkeys(self._lineage)), self._inputs)
 
     # ---------------------------------------------------------------------------------

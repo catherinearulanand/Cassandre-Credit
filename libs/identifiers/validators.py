@@ -29,7 +29,7 @@ _GST_STATE_CODES = {f"{i:02d}" for i in range(1, 39)} | {"97", "99"}
 
 
 def is_valid_pan(pan: str) -> bool:
-    return bool(_PAN_RE.match(pan))
+    return bool(_PAN_RE.fullmatch(pan))
 
 
 def gstin_check_char(first14: str) -> str:
@@ -44,7 +44,7 @@ def gstin_check_char(first14: str) -> str:
 
 
 def is_valid_gstin(gstin: str) -> bool:
-    if not _GSTIN_RE.match(gstin):
+    if not _GSTIN_RE.fullmatch(gstin):
         return False
     if gstin[:2] not in _GST_STATE_CODES:
         return False
@@ -52,14 +52,14 @@ def is_valid_gstin(gstin: str) -> bool:
 
 
 def is_valid_cin(cin: str) -> bool:
-    if not _CIN_RE.match(cin):
+    if not _CIN_RE.fullmatch(cin):
         return False
     year = int(cin[8:12])
     return 1850 <= year <= 2100
 
 
 def is_valid_llpin(llpin: str) -> bool:
-    return bool(_LLPIN_RE.match(llpin))
+    return bool(_LLPIN_RE.fullmatch(llpin))
 
 
 def _lei_numeric(s: str) -> int:
@@ -73,15 +73,15 @@ def lei_check_digits(first18: str) -> str:
 
 
 def is_valid_lei(lei: str) -> bool:
-    return bool(_LEI_RE.match(lei)) and _lei_numeric(lei) % 97 == 1
+    return bool(_LEI_RE.fullmatch(lei)) and _lei_numeric(lei) % 97 == 1
 
 
 def is_valid_ifsc(ifsc: str) -> bool:
-    return bool(_IFSC_RE.match(ifsc))
+    return bool(_IFSC_RE.fullmatch(ifsc))
 
 
 def is_valid_udyam(udyam: str) -> bool:
-    return bool(_UDYAM_RE.match(udyam))
+    return bool(_UDYAM_RE.fullmatch(udyam))
 
 
 # ---- Verhoeff (Aadhaar) -------------------------------------------------------------

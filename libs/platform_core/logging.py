@@ -9,21 +9,24 @@ from __future__ import annotations
 import json
 import logging
 import re
+import unicodedata
 from contextvars import ContextVar
 from typing import Any
 
 correlation_id_var: ContextVar[str | None] = ContextVar("correlation_id", default=None)
 
 _PII_PATTERNS = [
-    (re.compile(r"\b[A-Z]{5}[0-9]{4}[A-Z]\b"), "[PAN]"),
-    (re.compile(r"\b[2-9][0-9]{3}\s?[0-9]{4}\s?[0-9]{4}\b"), "[AADHAAR]"),
-    (re.compile(r"\b[0-9]{9,18}\b"), "[ACCT]"),
+    (re.compile(r"\b[A-Z]{5}[0-9]{4}[A-Z]\b", re.I), "[PAN]"),
+    (re.compile(r"\b[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]\b", re.I), "[GSTIN]"),
     (re.compile(r"\b[\w.+-]+@[\w-]+\.[\w.]+\b"), "[EMAIL]"),
-    (re.compile(r"(?<!\d)(?:\+91[\s-]?)?[6-9]\d{9}(?!\d)"), "[PHONE]"),
+    (re.compile(r"(?<![\w])(?:\+?91[\s.\-]?)?[6-9](?:[\s.\-]{0,2}\d){9}(?!\d)"), "[PHONE]"),
+    (re.compile(r"\b[A-Z]{1,3}\d{8,16}\b", re.I), "[ACCT]"),
+    (re.compile(r"(?<![\d,.])\d(?:[\s.\-]{0,2}\d){8,17}(?![\d,]|\.\d)"), "[ACCT]"),
 ]
 
 
 def scrub(text: str) -> str:
+    text = unicodedata.normalize("NFKC", text)
     for pat, repl in _PII_PATTERNS:
         text = pat.sub(repl, text)
     return text

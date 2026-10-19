@@ -21,9 +21,9 @@ rules:
     D3:          { secured: "100",  unsecured: "100" }
     LOSS:        { secured: "100",  unsecured: "100" }
 tests:
-  - { input: { dpd: 90 }, expect: STANDARD }
-  - { input: { dpd: 91, months_as_npa: 3 }, expect: SUBSTANDARD }
-  - { input: { dpd: 400, months_as_npa: 13 }, expect: D1 }
-  - { input: { dpd: 900, months_as_npa: 30 }, expect: D2 }
-  - { input: { dpd: 2000, months_as_npa: 60 }, expect: D3 }
-  - { input: { dpd: 200, months_as_npa: 5, loss_identified: true }, expect: LOSS }
+  - { input: { secured: true, dpd: 90 }, expect: STANDARD }
+  - { input: { secured: true, dpd: 91, months_as_npa: 3 }, expect: SUBSTANDARD }
+  - { input: { secured: true, dpd: 400, months_as_npa: 13 }, expect: D1 }
+  - { input: { secured: true, dpd: 900, months_as_npa: 30 }, expect: D2 }
+  - { input: { secured: true, dpd: 2000, months_as_npa: 60 }, expect: D3 }
+  - { input: { secured: true, dpd: 200, months_as_npa: 5, loss_identified: true }, expect: LOSS }

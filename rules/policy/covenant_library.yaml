@@ -1,0 +1,28 @@
+id: policy.covenant_library
+version: 2026.10.0
+status: unverified
+effective_from: 2026-04-01
+source:
+  title: "Standard covenant library (Build Guide Appendix C)"
+  url: null
+  source_note: "Bank-standard definitions over the platform chart of accounts. Agreement definitions override per CTS."
+rules:
+  definitions:
+    ebitda: "pbt + finance_costs + depreciation_amortisation - other_income_non_operating"
+    total_debt: "lt_borrowings + st_borrowings + current_maturities_ltd + lease_liabilities"
+    net_debt: "total_debt - cash_and_equivalents - liquid_investments"
+    tnw: "share_capital + other_equity - intangible_assets - deferred_tax_asset"
+    tol: "non_current_liabilities + current_liabilities"
+  covenants:
+    net_debt_ebitda:  { name: "Net Debt / EBITDA", formula: "safe_div(net_debt, ttm(ebitda))", operator: "<=" }
+    total_debt_ebitda: { name: "Total Debt / EBITDA", formula: "safe_div(total_debt, ttm(ebitda))", operator: "<=" }
+    dscr:             { name: "DSCR", formula: "safe_div(ttm(pat + depreciation_amortisation + finance_costs_lt), ttm(principal_repayment_lt + finance_costs_lt))", operator: ">=" }
+    iscr:             { name: "Interest Service Coverage Ratio", formula: "safe_div(ttm(ebitda), ttm(finance_costs))", operator: ">=" }
+    current_ratio:    { name: "Current Ratio", formula: "safe_div(current_assets, current_liabilities)", operator: ">=" }
+    tol_tnw:          { name: "TOL / TNW", formula: "safe_div(tol, tnw)", operator: "<=" }
+    debt_equity:      { name: "Debt / Equity", formula: "safe_div(total_debt, share_capital + other_equity)", operator: "<=" }
+    facr:             { name: "Fixed Asset Coverage Ratio", formula: "safe_div(net_fixed_assets, lt_secured_debt)", operator: ">=" }
+    min_tnw:          { name: "Minimum Tangible Net Worth", formula: "tnw", operator: ">=" }
+tests:
+  - { input: { covenant: dscr }, expect: ">=" }
+  - { input: { covenant: net_debt_ebitda }, expect: "<=" }

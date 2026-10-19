@@ -110,17 +110,20 @@ def test_authz_abac() -> None:
 
 
 def test_agent_cannot_decide() -> None:
-    agent = Principal(
-        id="agent:covenant",
-        kind="agent",
-        roles=frozenset({Role.AGENT, Role.SANCTIONING_AUTHORITY}),
-        on_behalf_of="u1",
-    )
+    # an agent can never be constructed holding a human decision role
+    with pytest.raises(AuthorizationError):
+        Principal(
+            id="agent:covenant",
+            kind="agent",
+            roles=frozenset({Role.AGENT, Role.SANCTIONING_AUTHORITY}),
+            on_behalf_of="u1",
+        )
+    human = Principal(id="u1", kind="human", roles=frozenset({Role.SANCTIONING_AUTHORITY}))
+    agent = Principal.for_agent("agent:covenant", human)
     with pytest.raises(AuthorizationError):
         authorize(agent, Permission.WAIVER_APPROVE)
-    unbound = Principal(id="agent:x", kind="agent", roles=frozenset({Role.AGENT}))
-    with pytest.raises(AuthorizationError):
-        authorize(unbound, Permission.CTS_DRAFT)
+    with pytest.raises(AuthorizationError):  # an agent with no human principal cannot exist
+        Principal(id="agent:x", kind="agent", roles=frozenset({Role.AGENT}))
 
 
 def test_maker_checker(clock, keys) -> None:  # type: ignore[no-untyped-def]

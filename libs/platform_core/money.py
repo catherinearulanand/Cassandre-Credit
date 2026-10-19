@@ -26,8 +26,8 @@ class Money(BaseModel):
     @field_validator("amount_paise", mode="before")
     @classmethod
     def _no_float(cls, v: Any) -> Any:
-        if isinstance(v, float):
-            raise TypeError("Money does not accept float; use int paise or Decimal rupees")
+        if isinstance(v, (float, bool)):
+            raise TypeError("Money accepts only int paise (no float, no bool)")
         return v
 
     # ---- construction -------------------------------------------------------------
@@ -37,8 +37,8 @@ class Money(BaseModel):
 
     @classmethod
     def from_rupees(cls, rupees: Decimal | int | str, currency: str = "INR") -> Money:
-        if isinstance(rupees, float):
-            raise TypeError("float rupees are not accepted")
+        if isinstance(rupees, (float, bool)):
+            raise TypeError("float/bool rupees are not accepted")
         d = Decimal(rupees) * PAISE_PER_RUPEE
         return cls(
             amount_paise=int(d.quantize(Decimal(1), rounding=ROUND_HALF_EVEN)), currency=currency
@@ -46,10 +46,14 @@ class Money(BaseModel):
 
     @classmethod
     def from_crore(cls, crore: Decimal | int | str) -> Money:
+        if isinstance(crore, (float, bool)):
+            raise TypeError("float/bool crore are not accepted")
         return cls.from_rupees(Decimal(crore) * CRORE)
 
     @classmethod
     def from_lakh(cls, lakh: Decimal | int | str) -> Money:
+        if isinstance(lakh, (float, bool)):
+            raise TypeError("float/bool lakh are not accepted")
         return cls.from_rupees(Decimal(lakh) * LAKH)
 
     # ---- arithmetic ---------------------------------------------------------------

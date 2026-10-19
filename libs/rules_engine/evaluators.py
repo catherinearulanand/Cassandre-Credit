@@ -9,6 +9,8 @@ from datetime import date, timedelta
 from decimal import Decimal
 from typing import Any
 
+from platform_core.errors import ValidationFailure
+
 from rules_engine import evaluator
 
 
@@ -20,12 +22,26 @@ def _d(v: Any) -> date:
 _SEVERITY = {"STANDARD": 0, "SMA-0": 1, "SMA-1": 2, "SMA-2": 3, "NPA": 4}
 
 
+def _count(f: dict[str, Any], name: str) -> int:
+    """A required non-negative integer fact. Missing or malformed facts fail closed."""
+    v = f[name]  # KeyError -> ValidationFailure at the registry boundary
+    if isinstance(v, bool) or not isinstance(v, int) or v < 0:
+        raise ValidationFailure(f"{name} must be a non-negative integer", code="rule_fact_invalid")
+    return v
+
+
 @evaluator("rbi.sma")
 def sma(p: dict[str, Any], f: dict[str, Any]) -> tuple[Any, str, dict[str, Any]]:
     """SMA/NPA bucket. Non-revolving: DPD bands. Revolving (CC/OD): days the balance has
-    continuously exceeded limit/DP, *and* DPD on interest; the worse bucket wins."""
+    continuously exceeded limit/DP, *and* DPD on interest; the worse bucket wins.
+
+    The facility type and DPD are mandatory: guessing "non-revolving, zero days" for a missing
+    fact would silently classify a stressed cash credit as STANDARD."""
     npa_after = int(p["npa_after_days"])
-    dpd = int(f.get("dpd", 0))
+    kind = str(f["type"]).strip().lower()
+    if kind not in ("revolving", "non_revolving"):
+        raise ValidationFailure(f"unknown facility type {f['type']!r}", code="rule_fact_invalid")
+    dpd = _count(f, "dpd")
     candidates: list[tuple[str, str]] = []
 
     def band(table: list[dict[str, Any]], days: int, lo: str, hi: str) -> str:
@@ -38,8 +54,8 @@ def sma(p: dict[str, Any], f: dict[str, Any]) -> tuple[Any, str, dict[str, Any]]
         candidates.append(("NPA", f"DPD {dpd} > {npa_after}"))
     else:
         candidates.append((band(p["non_revolving"], dpd, "dpd_min", "dpd_max"), f"DPD {dpd}"))
-    if f.get("type") == "revolving":
-        over = int(f.get("days_over_limit", 0))
+    if kind == "revolving":
+        over = _count(f, "days_over_limit")
         if over > npa_after:
             candidates.append(("NPA", f"out of order {over} days > {npa_after}"))
         else:
@@ -56,7 +72,7 @@ def sma(p: dict[str, Any], f: dict[str, Any]) -> tuple[Any, str, dict[str, Any]]
 
 @evaluator("rbi.irac")
 def irac(p: dict[str, Any], f: dict[str, Any]) -> tuple[Any, str, dict[str, Any]]:
-    dpd = int(f.get("dpd", 0))
+    dpd = _count(f, "dpd")
     if dpd <= int(p["npa_after_days"]):
         cls = "STANDARD"
     else:
@@ -67,7 +83,9 @@ def irac(p: dict[str, Any], f: dict[str, Any]) -> tuple[Any, str, dict[str, Any]
                 cls = str(band["class"])
         if f.get("loss_identified"):
             cls = "LOSS"
-    secured = bool(f.get("secured", True))
+    if not isinstance(f["secured"], bool):
+        raise ValidationFailure("secured must be a boolean", code="rule_fact_invalid")
+    secured = f["secured"]
     rate = p["provisioning_pct"][cls]["secured" if secured else "unsecured"]
     return cls, f"{cls}; provision {rate}%", {"provision_pct": str(rate)}
 
@@ -240,7 +258,7 @@ def large_exposures(p: dict[str, Any], f: dict[str, Any]) -> tuple[Any, str, dic
 
 @evaluator("rbi.ecl")
 def ecl(p: dict[str, Any], f: dict[str, Any]) -> tuple[Any, str, dict[str, Any]]:
-    dpd = int(f.get("dpd", 0))
+    dpd = _count(f, "dpd")
     if dpd > int(p["stage3_dpd_backstop"]) or f.get("credit_impaired"):
         return 3, "credit-impaired / DPD backstop", {}
     reasons = []
@@ -328,3 +346,9 @@ def ews_indicators(p: dict[str, Any], f: dict[str, Any]) -> tuple[Any, str, dict
         if fired:
             hits.append(str(ind["id"]))
     return hits, f"{len(hits)} indicator(s) fired", {}
+
+
+@evaluator("policy.covenant_library")
+def covenant_library(p: dict[str, Any], f: dict[str, Any]) -> tuple[Any, str, dict[str, Any]]:
+    c = p["covenants"][f["covenant"]]
+    return c["operator"], c["name"], {"formula": c["formula"], "definitions": p["definitions"]}

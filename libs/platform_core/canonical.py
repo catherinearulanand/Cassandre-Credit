@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from enum import Enum
 from typing import Any
@@ -18,9 +18,12 @@ from pydantic import BaseModel
 
 def _default(o: Any) -> Any:
     if isinstance(o, Decimal):
-        return format(o, "f")
+        n = o.normalize()
+        return format(n.quantize(Decimal(1)) if n == n.to_integral() else n, "f")
     if isinstance(o, datetime):
-        return o.isoformat()
+        if o.tzinfo is None:
+            raise TypeError("naive datetimes are not allowed in canonical documents")
+        return o.astimezone(UTC).isoformat()
     if isinstance(o, date):
         return o.isoformat()
     if isinstance(o, Enum):
@@ -45,6 +48,8 @@ def _normalise(o: Any) -> Any:
         return [_normalise(v) for v in o]
     if isinstance(o, float):
         # Citations carry normalised bbox floats; canonicalise them to fixed precision strings.
+        if o != o or abs(o) > 1e9:
+            raise TypeError("non-finite or out-of-range float in canonical document")
         return format(Decimal(repr(o)).quantize(Decimal("0.000001")), "f")
     return o
 

@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 
 import pytest
+from authz import Principal, Role
 from llm_client import LlmClient
 from llm_client.types import DataBlock, LlmRequest
 from model_gateway.gateway import (
@@ -108,11 +109,17 @@ def test_schema_repair_then_fail(clock) -> None:  # type: ignore[no-untyped-def]
 
 def test_kill_switch(clock) -> None:  # type: ignore[no-untyped-def]
     gw = _gw(clock)
-    gw.kill(use_case="covenant_agent.draft_letter", actor="cro")
+    cro = Principal(id="cro", kind="human", roles=frozenset({Role.CRO}))
+    with pytest.raises(AuthorizationError):
+        gw.kill(
+            Principal(id="intern", kind="human", roles=frozenset({Role.RM})),
+            use_case="covenant_agent.draft_letter",
+        )
+    gw.kill(cro, use_case="covenant_agent.draft_letter")
     with pytest.raises(KillSwitchActive):
         gw.complete(_req())
-    gw.revive(use_case="covenant_agent.draft_letter", actor="cro")
-    gw.kill(model="claude-sonnet-5-5", actor="cro")
+    gw.revive(cro, use_case="covenant_agent.draft_letter")
+    gw.kill(cro, model="claude-sonnet-5-5")
     assert gw.complete(_req()).used_fallback
 
 

@@ -1,0 +1,20 @@
+agent_id: sanction_compiler
+version: 1
+owner: credit-administration
+risk_tier: 2
+workload_identity: spiffe://credit-platform/agents/sanction_compiler
+tools_allowed:
+  - ocr.read_results
+  - product_catalogue.read
+  - rules.evaluate
+  - cts.write_draft
+tools_denied_examples: [cts.publish, limit.change, finacle.*, payments.*, borrower.send]
+data_scope:
+  obligor: assigned_case_only
+  data_classes: [borrower_raw]
+llm_use_cases: [sanction_compiler.extract]
+human_checkpoint:
+  action: cts.publish
+  role: cad_checker
+  rule: "checker must differ from the drafting identity"
+kill_switch: model_gateway.use_case.sanction_compiler.extract

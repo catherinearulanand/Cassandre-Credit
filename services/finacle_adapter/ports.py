@@ -21,7 +21,7 @@ class FinacleCommand:
 @dataclass
 class CommandResult:
     command_id: str
-    status: Literal["accepted", "rejected", "duplicate", "failed"]
+    status: Literal["accepted", "rejected", "duplicate", "failed", "needs_reconciliation", "dead"]
     finacle_ref: str | None = None
     detail: str | None = None
     attempts: int = 0

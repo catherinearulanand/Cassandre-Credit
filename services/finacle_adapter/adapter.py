@@ -13,16 +13,40 @@ import random
 import sqlite3
 import time
 from collections.abc import Callable
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any
 
 import httpx
 from platform_core.clock import Clock
-from platform_core.errors import AuthorizationError
+from platform_core.errors import AuthorizationError, ConflictError, ValidationFailure
 
 from finacle_adapter.ports import CommandResult, Drift, FinacleCommand, ReconciliationReport
 
-APPROVAL_REQUIRED = {"set_limit_status"}  # freeze/cap/close: decision-driven
+# Every command that changes limits, drawing power or money needs an approval bound to its exact
+# body (a signed ApprovalRecord, or for disbursements the signed drawdown-gate decision).
+APPROVAL_REQUIRED = {"upsert_limit", "set_limit_status", "set_dp", "disburse"}
+MAX_ATTEMPTS = 10
+RETRYABLE_STATUS = {408, 425, 429}
+
+CommandVerifier = Callable[[FinacleCommand], bool]
+
+
+def command_subject(cmd: FinacleCommand) -> dict[str, Any]:
+    """What an approval must be bound to: the command type, target and exact body."""
+    return {"command_type": cmd.command_type, "target": cmd.target, "body": cmd.body}
+
+
+def _validate_amounts(cmd: FinacleCommand) -> None:
+    b = cmd.body
+    checks = {"disburse": "amount_paise", "set_dp": "dp_paise", "upsert_limit": "sanctioned_paise"}
+    key = checks.get(cmd.command_type)
+    if key is None:
+        return
+    v = b.get(key)
+    if isinstance(v, bool) or not isinstance(v, int):
+        raise ValidationFailure(f"{key} must be an integer number of paise", code="bad_amount")
+    if v < 0 or (cmd.command_type == "disburse" and v == 0):
+        raise ValidationFailure(f"{key} must be positive", code="bad_amount")
 
 
 class CircuitOpen(Exception):
@@ -40,22 +64,24 @@ class CircuitBreaker:
     clock_fn: Callable[[], float] = time.monotonic
     failures: int = 0
     opened_at: float | None = None
+    probing: bool = False
 
     def before(self) -> None:
         if self.opened_at is not None:
-            if self.clock_fn() - self.opened_at < self.reset_after_s:
+            if self.probing or self.clock_fn() - self.opened_at < self.reset_after_s:
                 raise CircuitOpen("finacle circuit open")
-            self.opened_at = None  # half-open: let one call through
-            self.failures = self.failure_threshold - 1
+            self.probing = True  # half-open: exactly one probe call goes through
 
     def success(self) -> None:
         self.failures = 0
         self.opened_at = None
+        self.probing = False
 
     def failure(self) -> None:
         self.failures += 1
-        if self.failures >= self.failure_threshold:
+        if self.failures >= self.failure_threshold or self.probing:
             self.opened_at = self.clock_fn()
+            self.probing = False
 
 
 @dataclass
@@ -84,7 +110,7 @@ class HttpFinacleClient:
                 if attempt > self.max_retries:
                     raise FinacleUnavailable(str(exc)) from exc
             else:
-                if r.status_code >= 500:
+                if r.status_code >= 500 or r.status_code in RETRYABLE_STATUS:
                     self.breaker.failure()
                     if attempt > self.max_retries:
                         raise FinacleUnavailable(f"HTTP {r.status_code}")
@@ -113,7 +139,15 @@ _ROUTES: dict[str, tuple[str, str]] = {
 class CommandOutbox:
     """Durable command queue (SQLite here, Postgres in shared envs)."""
 
-    def __init__(self, path: str = ":memory:") -> None:
+    def __init__(
+        self,
+        path: str = ":memory:",
+        *,
+        verifier: CommandVerifier | None = None,
+        allow_unverified: bool = False,
+    ) -> None:
+        self.verifier = verifier
+        self.allow_unverified = allow_unverified
         self.conn = sqlite3.connect(path, isolation_level=None)
         self.conn.execute(
             "CREATE TABLE IF NOT EXISTS commands (command_id TEXT PRIMARY KEY, body TEXT NOT NULL, "
@@ -122,10 +156,24 @@ class CommandOutbox:
         )
 
     def submit(self, cmd: FinacleCommand) -> None:
-        if cmd.command_type in APPROVAL_REQUIRED and not cmd.approval_id:
-            raise AuthorizationError(
-                f"{cmd.command_type} requires an approval record", code="approval_required"
-            )
+        _validate_amounts(cmd)
+        if cmd.command_type in APPROVAL_REQUIRED:
+            if not cmd.approval_id:
+                raise AuthorizationError(
+                    f"{cmd.command_type} requires an approval record", code="approval_required"
+                )
+            if self.verifier is None:
+                if not self.allow_unverified:
+                    raise AuthorizationError(
+                        "no approval verifier configured; refusing unverifiable approval",
+                        code="approval_unverifiable",
+                    )
+            elif not self.verifier(cmd):
+                raise AuthorizationError(
+                    "approval does not verify against this exact command", code="approval_invalid"
+                )
+        if cmd.command_type == "disburse":
+            cmd = replace(cmd, body={**cmd.body, "gate_decision_id": cmd.approval_id})
         payload = json.dumps(
             {
                 "command_id": cmd.command_id,
@@ -136,9 +184,15 @@ class CommandOutbox:
                 "approval_id": cmd.approval_id,
             }
         )
+        row = self.conn.execute(
+            "SELECT body FROM commands WHERE command_id=?", (cmd.command_id,)
+        ).fetchone()
+        if row is not None:
+            if json.loads(row[0]) != json.loads(payload):
+                raise ConflictError(f"command {cmd.command_id} resubmitted with a different body")
+            return
         self.conn.execute(
-            "INSERT OR IGNORE INTO commands(command_id, body) VALUES (?, ?)",
-            (cmd.command_id, payload),
+            "INSERT INTO commands(command_id, body) VALUES (?, ?)", (cmd.command_id, payload)
         )
 
     def pending(self) -> list[FinacleCommand]:
@@ -146,6 +200,12 @@ class CommandOutbox:
             "SELECT body FROM commands WHERE status IN ('pending','retry') ORDER BY rowid"
         ).fetchall()
         return [FinacleCommand(**json.loads(r[0])) for r in rows]
+
+    def attempts(self, command_id: str) -> int:
+        row = self.conn.execute(
+            "SELECT attempts FROM commands WHERE command_id=?", (command_id,)
+        ).fetchone()
+        return int(row[0]) if row else 0
 
     def mark(self, res: CommandResult) -> None:
         self.conn.execute(
@@ -173,8 +233,16 @@ class Dispatcher:
         self.on_ack = on_ack
 
     def run_once(self) -> list[CommandResult]:
-        results = []
+        results: list[CommandResult] = []
+        blocked: set[str] = set()  # targets with an unresolved earlier command: preserve order
         for cmd in self.outbox.pending():
+            if cmd.target in blocked:
+                continue
+            prior_attempts = self.outbox.attempts(cmd.command_id)
+            if prior_attempts >= MAX_ATTEMPTS:
+                self.outbox.mark(CommandResult(cmd.command_id, "dead", detail="max attempts"))
+                blocked.add(cmd.target)
+                continue
             method, path = _ROUTES[cmd.command_type]
             body = dict(cmd.body)
             if cmd.approval_id:
@@ -194,7 +262,9 @@ class Dispatcher:
                     (str(exc), cmd.command_id),
                 )
                 results.append(res)
+                blocked.add(cmd.target)
                 continue
+            resp = resp if isinstance(resp, dict) else {}
             if status < 400:
                 st = "duplicate" if resp.get("duplicate") else "accepted"
                 res = CommandResult(cmd.command_id, st, resp.get("finacle_ref"), attempts=attempts)  # type: ignore[arg-type]
@@ -204,9 +274,17 @@ class Dispatcher:
                     if isinstance(resp, dict)
                     else str(resp)
                 )
+                # A 4xx on a command that was already attempted is ambiguous: the first attempt
+                # may have committed. Never mark it rejected; reconcile against Finacle instead.
+                outcome = "needs_reconciliation" if prior_attempts > 0 else "rejected"
                 res = CommandResult(
-                    cmd.command_id, "rejected", detail=str(detail), attempts=attempts
+                    cmd.command_id,
+                    outcome,  # type: ignore[arg-type]
+                    detail=str(detail),
+                    attempts=attempts,
                 )
+                if outcome == "needs_reconciliation":
+                    blocked.add(cmd.target)
             self.outbox.mark(res)
             if self.on_ack:
                 self.on_ack(res, cmd)

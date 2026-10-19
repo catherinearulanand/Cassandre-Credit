@@ -27,7 +27,10 @@ _UNIT_HEADER_PATTERNS: list[tuple[re.Pattern[str], UnitScale]] = [
     (re.compile(r"(in\s*)?(crores?|cr\.?)\b", re.I), UnitScale.CRORES),
     (re.compile(r"(in\s*)?(lakhs?|lacs?|lakh)\b", re.I), UnitScale.LAKHS),
     (re.compile(r"(in\s*)?millions?\b|\bmn\b", re.I), UnitScale.MILLIONS),
-    (re.compile(r"'\s*000|in\s*thousands?|\(000\)", re.I), UnitScale.THOUSANDS),
+    (
+        re.compile(r"'\s*000|\(?\s*(in\s*)?thousands?\s*\)?|\(000\)", re.I),
+        UnitScale.THOUSANDS,
+    ),
 ]
 
 _INLINE_UNIT = re.compile(r"(crores?|cr\.?|lakhs?|lacs?|millions?|mn|thousands?|k)\s*$", re.I)
@@ -45,7 +48,8 @@ class ParsedAmount:
 
 def detect_unit(header_text: str) -> UnitScale | None:
     """Detect a statement's unit header. Returns None when no unit header is present."""
-    text = header_text.replace("`", "'")
+    # typographic apostrophes and primes all mean the thousands tick in "(₹ ’000)"
+    text = re.sub(r"[`\u2018\u2019\u02bc\u2032\u00b4]", "'", header_text)
     for pat, unit in _UNIT_HEADER_PATTERNS:
         if pat.search(text):
             return unit
@@ -63,14 +67,16 @@ def _inline_scale(token: str) -> UnitScale:
     return UnitScale.THOUSANDS
 
 
-def parse_amount(text: str, *, cr_means: str = "crore") -> ParsedAmount | None:
+def parse_amount(text: str, *, cr_means: str | None = None) -> ParsedAmount | None:
     """Parse one printed amount. Returns None if the token is not a number.
 
     Dashes and "nil" parse to zero (financial statements use them for nil balances).
     ``cr_means`` resolves the "Cr" ambiguity: ``"crore"`` for sanction letters and
     statements, ``"credit"`` for bank-statement balances (where "Dr" means debit/negative).
+    Left unset, a bare trailing "Cr" is ambiguous and the token is rejected (returns None):
+    reading a credit balance as crore overstates it by a factor of ten million.
     """
-    if cr_means not in ("crore", "credit"):
+    if cr_means not in (None, "crore", "credit"):
         raise ValueError("cr_means must be 'crore' or 'credit'")
     raw = text
     s = text.strip().replace(" ", " ")
@@ -85,6 +91,8 @@ def parse_amount(text: str, *, cr_means: str = "crore") -> ParsedAmount | None:
         negative, s = True, re.sub(r"\s*[Dd][Rr]\.?$", "", s).strip()
     elif cr_means == "credit" and re.search(r"\d\s*CR\.?$", upper):
         s = re.sub(r"\s*[Cc][Rr]\.?$", "", s).strip()
+    if cr_means is None and re.search(r"\d\s*cr\.?$", s, re.I):
+        return None
     inline: UnitScale | None = None
     m = _INLINE_UNIT.search(s)
     if m and re.search(r"\d", s[: m.start()]):
@@ -94,7 +102,18 @@ def parse_amount(text: str, *, cr_means: str = "crore") -> ParsedAmount | None:
         negative, s = True, s[:-1].strip()
     if s.startswith("-") or s.startswith("−"):
         negative, s = True, s[1:].strip()
-    s = s.replace(",", "").replace(" ", "")
+    s = s.replace(" ", "")
+    # Commas must follow Indian (1,23,45,678) or western (12,345,678) grouping exactly;
+    # anything else (European "1.234,56", "1,000,00", "12,34,5") is rejected, not guessed.
+    if "," in s:
+        whole = s.split(".", 1)[0]
+        indian = re.fullmatch(r"\d{1,2}(,\d{2})*,\d{3}", whole)
+        western = re.fullmatch(r"\d{1,3}(,\d{3})+", whole)
+        if not (indian or western):
+            return None
+        if "." in s and s.rfind(",") > s.index("."):
+            return None
+        s = s.replace(",", "")
     if not re.fullmatch(r"\d+(\.\d+)?|\.\d+", s):
         return None
     try:

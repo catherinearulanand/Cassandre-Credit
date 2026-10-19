@@ -8,7 +8,7 @@ from enum import StrEnum
 
 from platform_core.canonical import content_hash
 from platform_core.clock import Clock
-from platform_core.errors import AuthorizationError
+from platform_core.errors import AuthorizationError, IntegrityError
 from platform_core.ids import new_id
 from security.crypto import Signature, Signer
 
@@ -47,6 +47,7 @@ class Permission(StrEnum):
     MODEL_PROMOTE = "model:promote"
     AUDIT_REPLAY = "audit:replay"
     RULES_OVERRIDE = "rules:override_unverified"
+    LLM_CONTROL = "llm:kill_switch"
 
 
 ROLE_PERMISSIONS: dict[Role, frozenset[Permission]] = {
@@ -76,7 +77,12 @@ ROLE_PERMISSIONS: dict[Role, frozenset[Permission]] = {
         {Permission.OTS_APPROVE, Permission.CASE_DECIDE, Permission.READ_OBLIGOR}
     ),
     Role.CRO: frozenset(
-        {Permission.READ_PORTFOLIO, Permission.READ_OBLIGOR, Permission.RFA_CLASSIFY}
+        {
+            Permission.READ_PORTFOLIO,
+            Permission.READ_OBLIGOR,
+            Permission.RFA_CLASSIFY,
+            Permission.LLM_CONTROL,
+        }
     ),
     Role.MODEL_VALIDATOR: frozenset({Permission.MODEL_PROMOTE}),
     Role.AUDITOR: frozenset(
@@ -100,6 +106,33 @@ class Principal:
     obligor_ids: frozenset[str] | None = None  # borrower users are pinned to their own obligor
     on_behalf_of: str | None = None  # agents act for a named human
     delegated_power_paise: int = 0  # sanctioning authority's delegated financial power
+
+    def __post_init__(self) -> None:
+        if self.kind not in ("human", "agent", "service"):
+            raise AuthorizationError(f"unknown principal kind {self.kind!r}", code="bad_kind")
+        if self.kind == "agent" and not (self.on_behalf_of and self.on_behalf_of.strip()):
+            raise AuthorizationError("agent principal needs a human", code="agent_unbound")
+        if self.kind == "agent" and self.roles != frozenset({Role.AGENT}):
+            raise AuthorizationError("an agent may hold only the agent role", code="bad_role")
+        if self.kind != "agent" and Role.AGENT in self.roles:
+            raise AuthorizationError(
+                "only agent principals may hold the agent role", code="bad_role"
+            )
+
+    @classmethod
+    def for_agent(cls, agent_id: str, human: Principal) -> Principal:
+        """An agent never exceeds the human it acts for: scope is inherited, not chosen."""
+        if human.kind != "human":
+            raise AuthorizationError("an agent must act for a human", code="agent_unbound")
+        return cls(
+            id=agent_id,
+            kind="agent",
+            roles=frozenset({Role.AGENT}),
+            regions=human.regions,
+            portfolios=human.portfolios,
+            obligor_ids=human.obligor_ids,
+            on_behalf_of=human.id,
+        )
 
     def permissions(self) -> frozenset[Permission]:
         perms: set[Permission] = set()
@@ -145,11 +178,33 @@ class ApprovalRecord:
     subject_hash: str  # content hash of exactly what was approved
     action: str
     maker_id: str
+    maker_on_behalf_of: str | None
     checker_id: str
     checker_roles: tuple[str, ...]
     reason: str
     at: datetime
+    amount_paise: int | None
     signature: Signature
+
+    def record_body(self) -> dict[str, object]:
+        """Everything except the signature. The signature covers all of it."""
+        return {
+            "approval_id": self.approval_id,
+            "subject": self.subject,
+            "subject_hash": self.subject_hash,
+            "action": self.action,
+            "maker_id": self.maker_id,
+            "maker_on_behalf_of": self.maker_on_behalf_of,
+            "checker_id": self.checker_id,
+            "checker_roles": list(self.checker_roles),
+            "reason": self.reason,
+            "at": self.at.isoformat(),
+            "amount_paise": self.amount_paise,
+        }
+
+
+def _norm(identity: str) -> str:
+    return " ".join(identity.split()).casefold()
 
 
 class MakerChecker:
@@ -158,6 +213,7 @@ class MakerChecker:
     def __init__(self, clock: Clock, signer: Signer) -> None:
         self._clock = clock
         self._signer = signer
+        self.records: dict[str, ApprovalRecord] = {}
 
     def approve(
         self,
@@ -170,31 +226,57 @@ class MakerChecker:
         required: Permission,
         reason: str,
         scope: ResourceScope | None = None,
+        maker_on_behalf_of: str | None = None,
+        amount_paise: int | None = None,
     ) -> ApprovalRecord:
         if checker.kind != "human":
             raise AuthorizationError("checker must be a human", code="checker_not_human")
-        if checker.id == maker_id:
+        # An agent maker is the human it acts for: that human cannot also be the checker.
+        makers = {_norm(maker_id)} | ({_norm(maker_on_behalf_of)} if maker_on_behalf_of else set())
+        if _norm(checker.id) in makers:
             raise AuthorizationError("maker and checker must differ", code="maker_equals_checker")
         if not reason.strip():
             raise AuthorizationError("approval requires a written reason", code="reason_required")
         authorize(checker, required, scope)
+        if amount_paise is not None and amount_paise > checker.delegated_power_paise:
+            raise AuthorizationError(
+                "amount exceeds the checker's delegated financial power", code="delegated_power"
+            )
         h = content_hash({"subject": subject, "payload": subject_payload, "action": action})
-        sig = self._signer.sign_hash(h)
-        return ApprovalRecord(
+        draft = ApprovalRecord(
             approval_id=new_id("APR"),
             subject=subject,
             subject_hash=h,
             action=action,
             maker_id=maker_id,
+            maker_on_behalf_of=maker_on_behalf_of,
             checker_id=checker.id,
             checker_roles=tuple(sorted(r.value for r in checker.roles)),
             reason=reason,
             at=self._clock.now(),
-            signature=sig,
+            amount_paise=amount_paise,
+            signature=Signature("", "", ""),
         )
+        sig = self._signer.sign_hash(content_hash(draft.record_body()))
+        record = ApprovalRecord(**{**draft.__dict__, "signature": sig})
+        self.records[record.approval_id] = record
+        return record
 
     def verify(self, record: ApprovalRecord, subject_payload: object) -> None:
+        """Verify the whole record (every field is signed) and its binding to the payload."""
+        stored = self.records.get(record.approval_id)
+        if stored is not None and stored != record:
+            raise IntegrityError("approval record differs from the issued record")
+        self._signer.verify(record.signature, content_hash(record.record_body()))
         h = content_hash(
             {"subject": record.subject, "payload": subject_payload, "action": record.action}
         )
-        self._signer.verify(record.signature, h)
+        if h != record.subject_hash:
+            raise IntegrityError("approval is not bound to this payload")
+
+    def verify_id(self, approval_id: str, subject_payload: object) -> ApprovalRecord:
+        record = self.records.get(approval_id)
+        if record is None:
+            raise IntegrityError(f"unknown approval {approval_id}")
+        self.verify(record, subject_payload)
+        return record

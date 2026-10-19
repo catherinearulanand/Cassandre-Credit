@@ -25,6 +25,7 @@ from typing import Any, Protocol
 
 import jsonschema
 import yaml
+from authz import Permission, Principal, authorize
 from llm_client.types import LlmRequest, LlmResponse, ProviderReply
 from platform_core.clock import Clock
 from platform_core.errors import AuthorizationError, DomainError
@@ -87,7 +88,25 @@ SYSTEM_TEMPLATE = (
 )
 
 
-def build_prompt(req: LlmRequest, data_texts: list[tuple[str, str]]) -> tuple[str, str]:
+def _escape_block(text: str) -> str:
+    """Untrusted text must not be able to close its own <data> block or open a new one."""
+    return re.sub(r"<(/?)(data)", r"&lt;\1\2", text, flags=re.I)
+
+
+def _restore_tree(obj: Any, restore: Any) -> Any:
+    """Re-identify placeholders on the parsed object tree (never on serialised JSON)."""
+    if isinstance(obj, str):
+        return restore(obj)
+    if isinstance(obj, list):
+        return [_restore_tree(x, restore) for x in obj]
+    if isinstance(obj, dict):
+        return {k: _restore_tree(v, restore) for k, v in obj.items()}
+    return obj
+
+
+def build_prompt(
+    req: LlmRequest, data_texts: list[tuple[str, str]], instruction: str | None = None
+) -> tuple[str, str]:
     schema_clause = (
         "Respond with a single JSON object that validates against this JSON Schema:\n"
         + json.dumps(req.output_schema, sort_keys=True)
@@ -95,8 +114,11 @@ def build_prompt(req: LlmRequest, data_texts: list[tuple[str, str]]) -> tuple[st
         else "Respond in plain text."
     )
     system = SYSTEM_TEMPLATE.format(schema_clause=schema_clause)
-    blocks = "\n".join(f'<data id="{bid}">\n{txt}\n</data>' for bid, txt in data_texts)
-    user = f"TASK:\n{req.instruction}\n\n{blocks}"
+    blocks = "\n".join(
+        f'<data id="{re.sub(r"[^A-Za-z0-9_:.-]", "_", bid)}">\n{_escape_block(txt)}\n</data>'
+        for bid, txt in data_texts
+    )
+    user = f"TASK:\n{instruction if instruction is not None else req.instruction}\n\n{blocks}"
     return system, user
 
 
@@ -127,7 +149,11 @@ class ModelGateway:
         self._emit = emit
 
     # ---- operations ---------------------------------------------------------------
-    def kill(self, *, use_case: str | None = None, model: str | None = None, actor: str) -> None:
+    def kill(
+        self, principal: Principal, *, use_case: str | None = None, model: str | None = None
+    ) -> None:
+        authorize(principal, Permission.LLM_CONTROL)
+        actor = principal.id
         if use_case:
             self.killed_use_cases.add(use_case)
         if model:
@@ -140,7 +166,13 @@ class ModelGateway:
             detail={"use_case": use_case, "model": model},
         )
 
-    def revive(self, *, use_case: str | None = None, model: str | None = None, actor: str) -> None:
+    def revive(
+        self, principal: Principal, *, use_case: str | None = None, model: str | None = None
+    ) -> None:
+        authorize(principal, Permission.LLM_CONTROL)
+        if principal.kind != "human":
+            raise AuthorizationError("only a human may re-enable a switched-off model")
+        actor = principal.id
         self.killed_use_cases.discard(use_case or "")
         self.killed_models.discard(model or "")
         self.audit.append(
@@ -188,6 +220,12 @@ class ModelGateway:
                 "untrusted content contains instruction-like text; routed to human review"
             )
 
+        if any(v.action == "constrain" for v in verdicts.values()) and req.output_schema is None:
+            self._log(req, route, None, "blocked_constrained_freetext", 0, 0, 0.0, False, False, {})
+            raise InjectionBlocked(
+                "content looks instruction-like: only schema-constrained output is permitted"
+            )
+
         self._check_rate(req.use_case, route)
         attempts = [("primary", route["primary"])]
         if route.get("fallback"):
@@ -204,15 +242,20 @@ class ModelGateway:
             except PolicyViolation as exc:
                 last_exc = exc
                 continue
+            if label == "fallback":
+                self._count_rate(req.use_case)
             provider = self.providers.get(target["provider"])
             if provider is None:
                 last_exc = GatewayError(f"provider {target['provider']} not configured")
                 continue
             data_texts = [(b.block_id, red.apply(b.text)) for b in req.data]
-            system, user = build_prompt(req, data_texts)
+            system, user = build_prompt(req, data_texts, red.apply(req.instruction))
             t0 = time.perf_counter()
             try:
                 reply, parsed = self._call_with_repair(provider, model, system, user, req)
+                text = red.restore(reply.text)
+                if parsed is not None and red.redacted:
+                    parsed = _restore_tree(parsed, red.restore)
             except Exception as exc:  # noqa: BLE001 - try fallback, log every failure
                 last_exc = exc
                 self._log(
@@ -229,10 +272,6 @@ class ModelGateway:
                 )
                 continue
             latency = (time.perf_counter() - t0) * 1000
-            text = red.restore(reply.text)
-            if parsed is not None and red.redacted:
-                parsed = json.loads(red.restore(json.dumps(parsed)))
-            self._charge(req.use_case, model, reply)
             call_id = self._log(
                 req,
                 route,
@@ -272,12 +311,8 @@ class ModelGateway:
             return _Redactor(None)
         if req.data_class == "borrower_raw":
             raise PolicyViolation("borrower_raw data may only reach self-hosted models")
-        if not route.get("redact"):
-            if req.data_class in ("confidential",):
-                raise PolicyViolation(
-                    "confidential data to non-self-hosted model requires redaction"
-                )
-            return _Redactor(None)
+        # Redaction is unconditional for every non-self-hosted provider. ``redact: false`` in
+        # config cannot switch it off: that would be a data-leak configuration, not a choice.
         return _Redactor(req.person_names)
 
     def _call_with_repair(
@@ -291,6 +326,7 @@ class ModelGateway:
             output_schema=req.output_schema,
             request=req,
         )
+        self._charge(req.use_case, model, reply)
         if req.output_schema is None:
             return reply, None
         try:
@@ -310,6 +346,8 @@ class ModelGateway:
                 output_schema=req.output_schema,
                 request=req,
             )
+            self._count_rate(req.use_case)
+            self._charge(req.use_case, model, reply2)
             try:
                 parsed = json.loads(reply2.text)
                 jsonschema.validate(parsed, req.output_schema)
@@ -336,6 +374,9 @@ class ModelGateway:
         if b.cost_today >= Decimal(str(route["budget"]["daily_cost_inr"])):
             raise BudgetExceeded(f"daily cost budget for {use_case} exhausted")
         b.calls.append(now)
+
+    def _count_rate(self, use_case: str) -> None:
+        self._budgets[use_case].calls.append(self.clock.now().timestamp())
 
     def _charge(self, use_case: str, model: str, reply: ProviderReply) -> None:
         prices = self.cfg.get("pricing_inr_per_1k_tokens", {})

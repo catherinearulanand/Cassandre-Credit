@@ -7,6 +7,7 @@ Any edit, deletion or reorder breaks verification from that point on. Periodic a
 
 from __future__ import annotations
 
+import copy
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
@@ -82,7 +83,7 @@ class AuditLog:
             on_behalf_of=on_behalf_of,
             action=action,
             subject=subject,
-            detail=detail or {},
+            detail=copy.deepcopy(detail) if detail else {},
             prev_hash=prev,
             entry_hash="",
         )

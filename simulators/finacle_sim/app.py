@@ -30,6 +30,7 @@ class Faults:
     latency_ms: int = 0
     outage: bool = False
     fail_next: int = 0
+    drop_after_commit: int = 0  # commit, then lose the response (ambiguous failure)
     seed: int = 7
     _rng: random.Random = field(default_factory=lambda: random.Random(7))
 
@@ -88,6 +89,7 @@ class SimState:
             latency_ms=f.get("latency_ms", 0),
             outage=f.get("outage", False),
             fail_next=f.get("fail_next", 0),
+            drop_after_commit=f.get("drop_after_commit", 0),
             _rng=random.Random(f.get("seed", 7)),
         )
 
@@ -119,19 +121,29 @@ def create_app(state: SimState | None = None) -> FastAPI:
     app = FastAPI(title="Finacle simulator", version="0.1.0")
     app.state.sim = st
 
-    def idempotent(key: str | None, body: Any, fn: Any) -> Any:
+    def idempotent(key: str | None, body: Any, fn: Any, validate: Any = None) -> Any:
+        # The idempotency lookup MUST come first: a retry of a committed command has to
+        # return the original result even if the account state has since changed.
         if not key:
             raise HTTPException(400, "Idempotency-Key header required")
+        st.faults.check()  # an outage blocks even idempotent lookups, as a real one does
         h = _body_hash(body)
         if key in st.idem:
             prev_h, prev_resp = st.idem[key]
             if prev_h != h:
                 raise HTTPException(409, "Idempotency-Key reused with different body")
             return {**prev_resp, "duplicate": True}
-        st.faults.check()
+        if validate is not None:
+            err = validate()
+            if err is not None:
+                return err
         resp = fn()
         st.write_count += 1
         st.idem[key] = (h, resp)
+        if st.faults.drop_after_commit > 0:
+            st.faults.drop_after_commit -= 1
+            st.faults.outage = True  # the link died together with the response
+            raise HTTPException(503, "response lost after commit (simulated)")
         return resp
 
     @app.get("/health")
@@ -222,10 +234,19 @@ def create_app(state: SimState | None = None) -> FastAPI:
         acct = st.accounts.get(body["account_id"])
         if acct is None:
             raise HTTPException(404, "account not found")
-        if acct["status"] != "active":
-            return JSONResponse({"status": "rejected", "reason": f"account {acct['status']}"}, 422)
-        if not body.get("gate_decision_id"):
-            return JSONResponse({"status": "rejected", "reason": "no drawdown gate decision"}, 422)
+
+        def validate() -> Any:
+            if acct["status"] != "active":
+                return JSONResponse(
+                    {"status": "rejected", "reason": f"account {acct['status']}"}, 422
+                )
+            if not body.get("gate_decision_id"):
+                return JSONResponse(
+                    {"status": "rejected", "reason": "no drawdown gate decision"}, 422
+                )
+            if not isinstance(body.get("amount_paise"), int) or body["amount_paise"] <= 0:
+                return JSONResponse({"status": "rejected", "reason": "invalid amount"}, 422)
+            return None
 
         def do() -> dict[str, Any]:
             acct["balance_paise"] += body["amount_paise"]
@@ -233,7 +254,14 @@ def create_app(state: SimState | None = None) -> FastAPI:
             st.emit("account.updated", body["account_id"], dict(acct))
             return {"status": "accepted", "finacle_ref": f"FDB{len(st.disbursements):06d}"}
 
-        return idempotent(idempotency_key, body, do)
+        return idempotent(idempotency_key, body, do, validate)
+
+    @app.get("/v1/disbursements/{request_id}")
+    def get_disbursement(request_id: str) -> dict[str, Any]:
+        st.faults.check()
+        if request_id not in st.disbursements:
+            raise HTTPException(404, "disbursement not found")
+        return st.disbursements[request_id]
 
     @app.get("/v1/cdc")
     def cdc(after: int = 0, limit: int = 1000) -> list[dict[str, Any]]:

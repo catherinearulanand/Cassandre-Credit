@@ -47,7 +47,10 @@ class EventLog:
 
     def append(self, event: EventEnvelope) -> LoggedEvent:
         if event.id in self._ids:
-            raise IntegrityError(f"event {event.id} already in log")
+            existing = next(e for e in self._entries if e.event.id == event.id)
+            if existing.event != event:
+                raise IntegrityError(f"event id {event.id} reused with different content")
+            return existing  # redelivery of the same event: idempotent
         prev = self._entries[-1].hash if self._entries else GENESIS
         h = sha256_hex(prev.encode() + canonical_json(event.model_dump(mode="json")))
         entry = LoggedEvent(len(self._entries), event, prev, h)

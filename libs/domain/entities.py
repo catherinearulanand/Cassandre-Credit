@@ -56,6 +56,8 @@ class Spread(BaseModel):
 
 
 class TestResult(StrEnum):
+    __test__ = False  # not a pytest class
+
     COMPLIED = "COMPLIED"
     BREACHED = "BREACHED"
     WAIVED = "WAIVED"

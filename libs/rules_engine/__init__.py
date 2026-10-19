@@ -16,9 +16,10 @@ from pathlib import Path
 from typing import Any, Literal
 
 import yaml
+from platform_core.clock import SystemClock
 from platform_core.config import PlatformSettings
-from platform_core.errors import DomainError
-from pydantic import BaseModel, Field
+from platform_core.errors import DomainError, ValidationFailure
+from pydantic import BaseModel, Field, model_validator
 
 
 class RuleSource(BaseModel):
@@ -45,6 +46,17 @@ class RulePack(BaseModel):
     verified_on: date | None = None
     rules: dict[str, Any]
     tests: list[RuleTest] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def _consistent(self) -> RulePack:
+        if self.status == "verified" and not (self.verified_by and self.verified_on):
+            raise ValueError("a verified pack needs verified_by and verified_on")
+        if self.effective_to is not None and self.effective_to <= self.effective_from:
+            raise ValueError("effective_to must be after effective_from")
+        return self
+
+    def covers(self, d: date) -> bool:
+        return self.effective_from <= d and (self.effective_to is None or d < self.effective_to)
 
 
 @dataclass(frozen=True)
@@ -77,10 +89,12 @@ class RuleRegistry:
         self,
         settings: PlatformSettings | None = None,
         on_override: Callable[[str, str], None] | None = None,
+        today: Callable[[], date] | None = None,
     ) -> None:
         self._settings = settings or PlatformSettings()
         self._packs: dict[str, list[RulePack]] = {}
         self._on_override = on_override
+        self._today: Callable[[], date] = today or (lambda: SystemClock().today())
 
     # ---- loading --------------------------------------------------------------------
     def load_dir(self, root: Path) -> RuleRegistry:
@@ -100,13 +114,24 @@ class RuleRegistry:
                     f"{pack.id}@{pack.version}",
                     code="unverified_rule_in_strict_profile",
                 )
-            if self._on_override:
-                self._on_override(pack.id, pack.version)
+            if self._on_override is None:
+                raise RuleLoadError(
+                    "unverified-rule override requires an audit hook", code="override_unaudited"
+                )
+            self._on_override(pack.id, pack.version)
         if pack.id not in _EVALUATORS:
             raise RuleLoadError(f"no evaluator registered for {pack.id}")
         versions = self._packs.setdefault(pack.id, [])
         if any(p.version == pack.version for p in versions):
             raise RuleLoadError(f"duplicate {pack.id}@{pack.version}")
+        for other in versions:
+            end_a = pack.effective_to or date.max
+            end_b = other.effective_to or date.max
+            if pack.effective_from < end_b and other.effective_from < end_a:
+                raise RuleLoadError(
+                    f"{pack.id}@{pack.version} overlaps {other.version}: set effective_to on the old one",
+                    code="rule_window_overlap",
+                )
         versions.append(pack)
         versions.sort(key=lambda p: p.effective_from)
 
@@ -124,12 +149,12 @@ class RuleRegistry:
                 if p.version == version:
                     return p
             raise RuleLoadError(f"{rule_id}@{version} not loaded", code="rule_version_missing")
+        # A pack in the future is never applied "today"; a replay passes an explicit as_of.
+        when = as_of if as_of is not None else self._today()
         in_force = [
             p
             for p in versions
-            if p.status != "superseded" or as_of is not None
-            if as_of is None
-            or (p.effective_from <= as_of and (p.effective_to is None or as_of < p.effective_to))
+            if p.covers(when) and (p.status != "superseded" or as_of is not None)
         ]
         if not in_force:
             raise RuleLoadError(
@@ -150,7 +175,12 @@ class RuleRegistry:
         version: str | None = None,
     ) -> Decision:
         pack = self.pack(rule_id, as_of=as_of, version=version)
-        result, explanation, details = _EVALUATORS[rule_id](pack.rules, facts)
+        try:
+            result, explanation, details = _EVALUATORS[rule_id](pack.rules, facts)
+        except KeyError as exc:
+            raise ValidationFailure(
+                f"{rule_id}: required fact {exc} is missing", code="rule_fact_missing"
+            ) from exc
         return Decision(result, explanation, pack.id, pack.version, details)
 
     def run_embedded_tests(self) -> list[str]:
@@ -185,7 +215,10 @@ def _normalise(v: Any) -> Any:
 RULES_ROOT = Path(__file__).resolve().parents[2] / "rules"
 
 
-def default_registry(settings: PlatformSettings | None = None) -> RuleRegistry:
+def default_registry(
+    settings: PlatformSettings | None = None,
+    on_override: Callable[[str, str], None] | None = None,
+) -> RuleRegistry:
     from rules_engine import evaluators  # noqa: F401  (registers evaluators)
 
-    return RuleRegistry(settings).load_dir(RULES_ROOT)
+    return RuleRegistry(settings, on_override).load_dir(RULES_ROOT)

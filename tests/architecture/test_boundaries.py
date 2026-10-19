@@ -145,7 +145,18 @@ _INVISIBLE = re.compile("[\u200b-\u200f\u202a-\u202e\u2060-\u2069\ufeff]")
 def test_no_invisible_or_bidi_characters_in_source() -> None:
     """Trojan Source guard (CVE-2021-42574): reviewers must see exactly what executes."""
     bad = []
-    for base in ("libs", "services", "simulators", "ocr", "ml", "agents", "sim", "tools", "tests", "rules"):
+    for base in (
+        "libs",
+        "services",
+        "simulators",
+        "ocr",
+        "ml",
+        "agents",
+        "sim",
+        "tools",
+        "tests",
+        "rules",
+    ):
         d = ROOT / base
         if not d.exists():
             continue
