@@ -1,0 +1,39 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "approval_id": {
+      "title": "Approval Id",
+      "type": "string"
+    },
+    "approver": {
+      "title": "Approver",
+      "type": "string"
+    },
+    "content_hash": {
+      "title": "Content Hash",
+      "type": "string"
+    },
+    "cts_id": {
+      "title": "Cts Id",
+      "type": "string"
+    },
+    "signature_key_id": {
+      "title": "Signature Key Id",
+      "type": "string"
+    },
+    "version": {
+      "title": "Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "cts_id",
+    "version",
+    "content_hash",
+    "signature_key_id",
+    "approver",
+    "approval_id"
+  ],
+  "title": "CtsPublished",
+  "type": "object"
+}

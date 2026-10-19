@@ -1,0 +1,18 @@
+id: rbi.rfa
+version: 2026.10.0
+status: unverified
+effective_from: 2024-07-15
+source:
+  title: "Master Directions on Fraud Risk Management in Commercial Banks (15 Jul 2024)"
+  date: 2024-07-15
+  url: null
+  source_note: "Show-cause with at least 21 days to respond before fraud classification. [VERIFY] all day counts."
+rules:
+  show_cause_min_response_days: 21
+  rfa_resolution_days: 180
+  ews_score_rfa_threshold: 80
+tests:
+  - { input: { today: 2026-03-01 }, expect: false }
+  - { input: { show_cause_issued_on: 2026-03-01, today: 2026-03-21 }, expect: false }
+  - { input: { show_cause_issued_on: 2026-03-01, today: 2026-03-22 }, expect: true }
+  - { input: { show_cause_issued_on: 2026-03-01, today: 2026-03-05, response_received_on: 2026-03-04 }, expect: true }

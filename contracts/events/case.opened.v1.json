@@ -1,0 +1,24 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "case_id": {
+      "title": "Case Id",
+      "type": "string"
+    },
+    "case_type": {
+      "title": "Case Type",
+      "type": "string"
+    },
+    "summary": {
+      "title": "Summary",
+      "type": "string"
+    }
+  },
+  "required": [
+    "case_id",
+    "case_type",
+    "summary"
+  ],
+  "title": "CaseOpened",
+  "type": "object"
+}

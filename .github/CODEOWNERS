@@ -1,0 +1,9 @@
+# Changes to these paths need a second reviewer from the owning team (Build Guide §14.3).
+/rules/                         @bank/credit-risk-policy @bank/compliance
+/contracts/                     @bank/platform-architecture
+/agents/*/prompts/              @bank/ai-governance
+/agents/*/policy.yaml           @bank/ai-governance @bank/infosec
+/services/model_gateway/config/ @bank/ai-governance @bank/infosec
+/ml/models/                     @bank/model-risk
+/libs/security/                 @bank/infosec
+/libs/authz/                    @bank/infosec

@@ -1,0 +1,48 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "confidence": {
+      "title": "Confidence",
+      "type": "number"
+    },
+    "doc_type": {
+      "title": "Doc Type",
+      "type": "string"
+    },
+    "document_id": {
+      "title": "Document Id",
+      "type": "string"
+    },
+    "fields": {
+      "additionalProperties": true,
+      "title": "Fields",
+      "type": "object"
+    },
+    "model_versions": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "title": "Model Versions",
+      "type": "object"
+    },
+    "pipeline_version": {
+      "title": "Pipeline Version",
+      "type": "string"
+    },
+    "review_status": {
+      "title": "Review Status",
+      "type": "string"
+    }
+  },
+  "required": [
+    "document_id",
+    "doc_type",
+    "fields",
+    "confidence",
+    "review_status",
+    "pipeline_version",
+    "model_versions"
+  ],
+  "title": "DocumentExtracted",
+  "type": "object"
+}

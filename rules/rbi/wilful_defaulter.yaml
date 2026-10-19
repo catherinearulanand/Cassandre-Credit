@@ -1,0 +1,17 @@
+id: rbi.wilful_defaulter
+version: 2026.10.0
+status: unverified
+effective_from: 2024-10-28
+source:
+  title: "Master Direction on Treatment of Wilful Defaulters and Large Defaulters (2024)"
+  url: null
+  source_note: "Threshold Rs 25 lakh and 15-day response cited from memory. [VERIFY]"
+rules:
+  threshold_rupees: 2500000
+  response_days: 15
+tests:
+  - { input: { outstanding_rupees: 1000000, today: 2026-01-01 }, expect: NOT_ELIGIBLE }
+  - { input: { outstanding_rupees: 9000000, today: 2026-01-01 }, expect: SHOW_CAUSE_REQUIRED }
+  - { input: { outstanding_rupees: 9000000, show_cause_issued_on: 2026-01-01, today: 2026-01-10 }, expect: AWAITING_RESPONSE }
+  - { input: { outstanding_rupees: 9000000, show_cause_issued_on: 2026-01-01, today: 2026-01-20 }, expect: REVIEW_COMMITTEE_REQUIRED }
+  - { input: { outstanding_rupees: 9000000, show_cause_issued_on: 2026-01-01, today: 2026-01-20, review_committee_confirmed: true }, expect: MAY_CLASSIFY }

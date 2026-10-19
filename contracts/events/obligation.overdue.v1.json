@@ -1,0 +1,34 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "chase_action": {
+      "title": "Chase Action",
+      "type": "string"
+    },
+    "days_overdue": {
+      "title": "Days Overdue",
+      "type": "integer"
+    },
+    "doc_type": {
+      "title": "Doc Type",
+      "type": "string"
+    },
+    "due_date": {
+      "title": "Due Date",
+      "type": "string"
+    },
+    "obligation_id": {
+      "title": "Obligation Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "obligation_id",
+    "doc_type",
+    "due_date",
+    "days_overdue",
+    "chase_action"
+  ],
+  "title": "ObligationOverdue",
+  "type": "object"
+}

@@ -1,0 +1,22 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "case_id": {
+      "title": "Case Id",
+      "type": "string"
+    },
+    "triggering_indicators": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Triggering Indicators",
+      "type": "array"
+    }
+  },
+  "required": [
+    "case_id",
+    "triggering_indicators"
+  ],
+  "title": "RfaOpened",
+  "type": "object"
+}

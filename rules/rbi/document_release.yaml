@@ -1,0 +1,17 @@
+id: rbi.document_release
+version: 2026.10.0
+status: unverified
+effective_from: 2023-12-01
+source:
+  title: "Responsible Lending Conduct - Release of Movable / Immovable Property Documents (13 Sep 2023)"
+  date: 2023-09-13
+  url: null
+  source_note: "30 days; Rs 5,000 per day compensation for lender-attributable delay. [VERIFY]"
+rules:
+  release_within_days: 30
+  compensation_rupees_per_day: 5000
+  internal_escalation_day: 25
+tests:
+  - { input: { repaid_on: 2026-01-01, today: 2026-01-26 }, expect: { due_date: 2026-01-31, days_delayed: 0, compensation_rupees: "0" } }
+  - { input: { repaid_on: 2026-01-01, today: 2026-02-01 }, expect: { due_date: 2026-01-31, days_delayed: 1, compensation_rupees: "5000" } }
+  - { input: { repaid_on: 2026-01-01, today: 2026-02-10, delay_attributable_to_lender: false }, expect: { due_date: 2026-01-31, days_delayed: 10, compensation_rupees: "0" } }

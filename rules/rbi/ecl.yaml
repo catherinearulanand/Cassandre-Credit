@@ -1,0 +1,20 @@
+id: rbi.ecl
+version: 2026.10.0
+status: unverified
+effective_from: 2027-04-01
+source:
+  title: "Expected Credit Loss directions (issued 27 Apr 2026, effective 1 Apr 2027)"
+  date: 2026-04-27
+  url: null
+  source_note: "DPD backstops 30/90 per standard practice; SICR PD multiple and EWS overlay are bank-policy assumptions. [VERIFY]"
+rules:
+  stage2_dpd_backstop: 30
+  stage3_dpd_backstop: 90
+  sicr_pd_multiple: "2.0"
+  sicr_ews_score: 70
+tests:
+  - { input: { dpd: 0 }, expect: 1 }
+  - { input: { dpd: 31 }, expect: 2 }
+  - { input: { dpd: 91 }, expect: 3 }
+  - { input: { dpd: 0, pd_origination: "0.01", pd_current: "0.025" }, expect: 2 }
+  - { input: { dpd: 0, ews_score: 75 }, expect: 2 }

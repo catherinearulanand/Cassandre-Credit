@@ -1,0 +1,24 @@
+id: policy.monitoring
+version: 2026.10.0
+status: unverified
+effective_from: 2026-04-01
+source:
+  title: "Post-sanction monitoring calendar and chase policy"
+  url: null
+  source_note: "Illustrative bank policy. Due days and chase cadence to be confirmed by credit monitoring."
+rules:
+  due:
+    stock_statement_day_of_following_month: 15
+    qis_days_after_quarter: 45
+    audited_fs_days_after_fy: 180
+    compliance_certificate_days_after_test: 45
+  chase_sequence:
+    - { after_days_overdue: 0,  action: portal_message }
+    - { after_days_overdue: 3,  action: email }
+    - { after_days_overdue: 7,  action: rm_task }
+    - { after_days_overdue: 15, action: raise_signal }
+tests:
+  - { input: { days_overdue: 0 }, expect: portal_message }
+  - { input: { days_overdue: 5 }, expect: email }
+  - { input: { days_overdue: 7 }, expect: rm_task }
+  - { input: { days_overdue: 40 }, expect: raise_signal }

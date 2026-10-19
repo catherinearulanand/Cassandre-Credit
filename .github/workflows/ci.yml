@@ -1,0 +1,17 @@
+name: ci
+on: [push, pull_request]
+jobs:
+  gates:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+      - run: uv venv --python 3.12 && uv pip install -e ".[dev]"
+      - run: .venv/bin/python -m tools.cli lint
+      - run: .venv/bin/python -m tools.cli typecheck
+      - run: .venv/bin/python -m tools.cli contracts-check
+      - run: .venv/bin/python -m tools.cli rules-test
+      - run: .venv/bin/python -m tools.cli test
+      - run: .venv/bin/python -m tools.cli test-golden
+      - run: uvx pip-audit
+      - run: uvx bandit -q -r libs services simulators ocr ml agents -x tests

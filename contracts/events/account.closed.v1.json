@@ -1,0 +1,30 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "facility_ids": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Facility Ids",
+      "type": "array"
+    },
+    "release_actions": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Release Actions",
+      "type": "array"
+    },
+    "zero_dues_proof": {
+      "title": "Zero Dues Proof",
+      "type": "string"
+    }
+  },
+  "required": [
+    "facility_ids",
+    "zero_dues_proof",
+    "release_actions"
+  ],
+  "title": "AccountClosed",
+  "type": "object"
+}

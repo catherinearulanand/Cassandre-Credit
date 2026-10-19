@@ -1,0 +1,28 @@
+id: ews.indicators
+version: 2026.10.0
+status: unverified
+effective_from: 2024-07-15
+source:
+  title: "Early Warning Signals - Fraud Risk Management Directions (2024), Annex EWS indicators"
+  url: null
+  source_note: "Indicators adapted from the RBI EWS list; metric thresholds are bank calibration choices. [VERIFY] list against Annex."
+rules:
+  indicators:
+    - { id: EWS01_cheque_returns, metric: cheque_returns_90d, operator: ">=", threshold: 3, severity: high, desc: "Bouncing of high-value cheques / ECS returns" }
+    - { id: EWS02_overdrawn_days, metric: overdrawn_days_90d, operator: ">=", threshold: 15, severity: high, desc: "Frequent overdrawing beyond limit / DP" }
+    - { id: EWS03_persistent_full_utilisation, metric: utilisation_avg_90d, operator: ">=", threshold: "0.97", severity: medium, desc: "Persistent full utilisation of working capital limits" }
+    - { id: EWS04_stock_statement_delay, metric: stock_statement_days_late, operator: ">", threshold: 15, severity: medium, desc: "Delay in submission of stock statements" }
+    - { id: EWS05_lc_devolvement, metric: lc_devolved_count_180d, operator: ">=", threshold: 1, severity: high, desc: "Devolvement of LC" }
+    - { id: EWS06_bg_invocation, metric: bg_invoked_count_180d, operator: ">=", threshold: 1, severity: high, desc: "Invocation of BG" }
+    - { id: EWS07_auditor_change, metric: auditor_changes_24m, operator: ">=", threshold: 2, severity: high, desc: "Frequent change of auditors / auditor resignation" }
+    - { id: EWS08_interest_delay, metric: interest_delay_days, operator: ">", threshold: 30, severity: high, desc: "Delay in servicing interest" }
+    - { id: EWS09_gst_gap, metric: gst_returns_missed_6m, operator: ">=", threshold: 2, severity: medium, desc: "Gaps in GST return filing" }
+    - { id: EWS10_turnover_mismatch, metric: gst_vs_bank_credit_gap_pct, operator: ">=", threshold: 30, severity: medium, desc: "Bank credits diverge from GST turnover" }
+    - { id: EWS11_rating_downgrade, metric: rating_notches_down_12m, operator: ">=", threshold: 2, severity: high, desc: "External rating downgrade" }
+    - { id: EWS12_promoter_pledge, metric: promoter_pledge_pct, operator: ">=", threshold: 50, severity: medium, desc: "High / rising promoter pledge" }
+    - { id: EWS13_other_lender_charge, metric: new_charges_other_lenders_6m, operator: ">=", threshold: 2, severity: low, desc: "Charges created by other lenders" }
+    - { id: EWS14_covenant_breach, metric: covenant_breaches_open, operator: ">=", threshold: 1, severity: high, desc: "Open financial covenant breach" }
+tests:
+  - { input: { metrics: { cheque_returns_90d: 4, overdrawn_days_90d: 2 } }, expect: [EWS01_cheque_returns] }
+  - { input: { metrics: { utilisation_avg_90d: "0.99", stock_statement_days_late: 20 } }, expect: [EWS03_persistent_full_utilisation, EWS04_stock_statement_delay] }
+  - { input: { metrics: {} }, expect: [] }

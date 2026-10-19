@@ -1,0 +1,32 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "cts_id": {
+      "title": "Cts Id",
+      "type": "string"
+    },
+    "drafted_by": {
+      "title": "Drafted By",
+      "type": "string"
+    },
+    "low_confidence_fields": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Low Confidence Fields",
+      "type": "array"
+    },
+    "version": {
+      "title": "Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "cts_id",
+    "version",
+    "low_confidence_fields",
+    "drafted_by"
+  ],
+  "title": "CtsDrafted",
+  "type": "object"
+}

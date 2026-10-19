@@ -1,0 +1,42 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "evidence": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Evidence",
+      "type": "array"
+    },
+    "explanation": {
+      "title": "Explanation",
+      "type": "string"
+    },
+    "score": {
+      "title": "Score",
+      "type": "number"
+    },
+    "severity": {
+      "title": "Severity",
+      "type": "string"
+    },
+    "signal_id": {
+      "title": "Signal Id",
+      "type": "string"
+    },
+    "signal_type": {
+      "title": "Signal Type",
+      "type": "string"
+    }
+  },
+  "required": [
+    "signal_id",
+    "signal_type",
+    "severity",
+    "score",
+    "explanation",
+    "evidence"
+  ],
+  "title": "SignalRaised",
+  "type": "object"
+}

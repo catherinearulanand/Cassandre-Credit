@@ -1,0 +1,43 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "agent_id": {
+      "title": "Agent Id",
+      "type": "string"
+    },
+    "denied_calls": {
+      "default": 0,
+      "title": "Denied Calls",
+      "type": "integer"
+    },
+    "human_principal": {
+      "title": "Human Principal",
+      "type": "string"
+    },
+    "output_ref": {
+      "title": "Output Ref",
+      "type": "string"
+    },
+    "run_id": {
+      "title": "Run Id",
+      "type": "string"
+    },
+    "tool_calls": {
+      "items": {
+        "additionalProperties": true,
+        "type": "object"
+      },
+      "title": "Tool Calls",
+      "type": "array"
+    }
+  },
+  "required": [
+    "run_id",
+    "agent_id",
+    "human_principal",
+    "tool_calls",
+    "output_ref"
+  ],
+  "title": "AgentRunCompleted",
+  "type": "object"
+}

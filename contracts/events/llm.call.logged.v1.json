@@ -1,0 +1,59 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "call_id": {
+      "title": "Call Id",
+      "type": "string"
+    },
+    "data_class": {
+      "title": "Data Class",
+      "type": "string"
+    },
+    "latency_ms": {
+      "title": "Latency Ms",
+      "type": "number"
+    },
+    "model": {
+      "title": "Model",
+      "type": "string"
+    },
+    "outcome": {
+      "title": "Outcome",
+      "type": "string"
+    },
+    "provider": {
+      "title": "Provider",
+      "type": "string"
+    },
+    "redacted": {
+      "title": "Redacted",
+      "type": "boolean"
+    },
+    "tokens_in": {
+      "title": "Tokens In",
+      "type": "integer"
+    },
+    "tokens_out": {
+      "title": "Tokens Out",
+      "type": "integer"
+    },
+    "use_case": {
+      "title": "Use Case",
+      "type": "string"
+    }
+  },
+  "required": [
+    "call_id",
+    "use_case",
+    "model",
+    "provider",
+    "data_class",
+    "redacted",
+    "tokens_in",
+    "tokens_out",
+    "latency_ms",
+    "outcome"
+  ],
+  "title": "LlmCallLogged",
+  "type": "object"
+}

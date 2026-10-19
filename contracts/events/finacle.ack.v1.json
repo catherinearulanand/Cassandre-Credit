@@ -1,0 +1,41 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "command_id": {
+      "title": "Command Id",
+      "type": "string"
+    },
+    "command_type": {
+      "title": "Command Type",
+      "type": "string"
+    },
+    "finacle_ref": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Finacle Ref"
+    },
+    "status": {
+      "enum": [
+        "accepted",
+        "rejected",
+        "duplicate"
+      ],
+      "title": "Status",
+      "type": "string"
+    }
+  },
+  "required": [
+    "command_id",
+    "command_type",
+    "status"
+  ],
+  "title": "FinacleAck",
+  "type": "object"
+}

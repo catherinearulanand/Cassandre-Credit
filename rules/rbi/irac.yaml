@@ -1,0 +1,29 @@
+id: rbi.irac
+version: 2026.10.0
+status: unverified
+effective_from: 2015-07-01
+source:
+  title: "Master Circular - Prudential norms on Income Recognition, Asset Classification and Provisioning"
+  url: null
+  source_note: "Provisioning rates cited from memory. [VERIFY] current master circular before UAT."
+rules:
+  npa_after_days: 90
+  classes:
+    - { class: SUBSTANDARD, from_months: 0,  to_months: 12 }
+    - { class: D1,          from_months: 12, to_months: 24 }
+    - { class: D2,          from_months: 24, to_months: 48 }
+    - { class: D3,          from_months: 48 }
+  provisioning_pct:
+    STANDARD:    { secured: "0.40", unsecured: "0.40" }
+    SUBSTANDARD: { secured: "15",   unsecured: "25" }
+    D1:          { secured: "25",   unsecured: "100" }
+    D2:          { secured: "40",   unsecured: "100" }
+    D3:          { secured: "100",  unsecured: "100" }
+    LOSS:        { secured: "100",  unsecured: "100" }
+tests:
+  - { input: { dpd: 90 }, expect: STANDARD }
+  - { input: { dpd: 91, months_as_npa: 3 }, expect: SUBSTANDARD }
+  - { input: { dpd: 400, months_as_npa: 13 }, expect: D1 }
+  - { input: { dpd: 900, months_as_npa: 30 }, expect: D2 }
+  - { input: { dpd: 2000, months_as_npa: 60 }, expect: D3 }
+  - { input: { dpd: 200, months_as_npa: 5, loss_identified: true }, expect: LOSS }

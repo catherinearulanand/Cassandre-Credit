@@ -1,0 +1,41 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "claimed_type": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Claimed Type"
+    },
+    "document_id": {
+      "title": "Document Id",
+      "type": "string"
+    },
+    "sha256": {
+      "title": "Sha256",
+      "type": "string"
+    },
+    "size_bytes": {
+      "title": "Size Bytes",
+      "type": "integer"
+    },
+    "source": {
+      "title": "Source",
+      "type": "string"
+    }
+  },
+  "required": [
+    "document_id",
+    "sha256",
+    "source",
+    "size_bytes"
+  ],
+  "title": "DocumentReceived",
+  "type": "object"
+}

@@ -1,0 +1,19 @@
+id: policy.approval_matrix
+version: 2026.10.0
+status: unverified
+effective_from: 2026-04-01
+source:
+  title: "Delegation of Financial Powers (placeholder parameters)"
+  url: null
+  source_note: "Illustrative delegation ladder. Replace with the bank's board-approved DoFP."
+rules:
+  delegated_power_rupees:
+    branch_credit_committee: 250000000
+    zonal_credit_committee: 1500000000
+    central_credit_committee: 7500000000
+    board_credit_committee: unlimited
+tests:
+  - { input: { authority: zonal_credit_committee, total_exposure_rupees: 1000000000 }, expect: true }
+  - { input: { authority: branch_credit_committee, total_exposure_rupees: 1000000000 }, expect: false }
+  - { input: { authority: board_credit_committee, total_exposure_rupees: 99999999999 }, expect: true }
+  - { input: { authority: unknown_desk, total_exposure_rupees: 1 }, expect: false }

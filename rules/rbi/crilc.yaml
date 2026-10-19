@@ -1,0 +1,14 @@
+id: rbi.crilc
+version: 2026.10.0
+status: unverified
+effective_from: 2014-02-13
+source:
+  title: "Central Repository of Information on Large Credits (CRILC) reporting"
+  url: null
+  source_note: "Threshold Rs 5 crore aggregate exposure per architecture. [VERIFY] reporting frequencies."
+rules:
+  reporting_threshold_rupees: 50000000
+  frequency: { main_report: quarterly, sma2_default: weekly }
+tests:
+  - { input: { aggregate_exposure_paise: 4999999999 }, expect: false }
+  - { input: { aggregate_exposure_paise: 5000000000 }, expect: true }

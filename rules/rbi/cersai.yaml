@@ -1,0 +1,14 @@
+id: rbi.cersai
+version: 2026.10.0
+status: unverified
+effective_from: 2016-01-22
+source:
+  title: "SARFAESI Act s.23 / CERSAI registration of security interest"
+  url: null
+  source_note: "30 days from creation per architecture. [VERIFY] current statutory window."
+rules:
+  registration_days: 30
+tests:
+  - { input: { created_on: 2026-01-01, registered_on: 2026-01-20, today: 2026-02-15 }, expect: ON_TIME }
+  - { input: { created_on: 2026-01-01, today: 2026-01-31 }, expect: PENDING }
+  - { input: { created_on: 2026-01-01, today: 2026-02-01 }, expect: OVERDUE }

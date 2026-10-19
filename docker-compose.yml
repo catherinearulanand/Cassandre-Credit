@@ -1,0 +1,40 @@
+# Local production-like infrastructure (Build Guide §5.2). Not required for unit tests (ADR 0002).
+# Bring up with: docker compose up -d
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: credit
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me-local-only}
+      POSTGRES_DB: credit
+    ports: ["5432:5432"]
+    healthcheck: { test: ["CMD-SHELL", "pg_isready -U credit"], interval: 5s, retries: 10 }
+  redpanda:
+    image: redpandadata/redpanda:v24.2.7
+    command: ["redpanda", "start", "--overprovisioned", "--smp", "1", "--memory", "1G",
+              "--kafka-addr", "PLAINTEXT://0.0.0.0:9092", "--advertise-kafka-addr", "PLAINTEXT://localhost:9092",
+              "--schema-registry-addr", "0.0.0.0:8081"]
+    ports: ["9092:9092", "8081:8081"]
+  neo4j:
+    image: neo4j:5.24-community
+    environment: { NEO4J_AUTH: "neo4j/${NEO4J_PASSWORD:-change-me-local-only}" }
+    ports: ["7474:7474", "7687:7687"]
+  minio:
+    image: minio/minio:RELEASE.2024-10-13T13-34-11Z
+    command: server /data --console-address ":9001"
+    environment: { MINIO_ROOT_USER: credit, MINIO_ROOT_PASSWORD: "${MINIO_PASSWORD:-change-me-local-only}" }
+    ports: ["9000:9000", "9001:9001"]
+  redis:
+    image: redis:7.4-alpine
+    ports: ["6379:6379"]
+  temporal:
+    image: temporalio/auto-setup:1.25.1
+    environment: { DB: postgres12, DB_PORT: 5432, POSTGRES_USER: credit, POSTGRES_PWD: "${POSTGRES_PASSWORD:-change-me-local-only}", POSTGRES_SEEDS: postgres }
+    depends_on: [postgres]
+    ports: ["7233:7233"]
+  jaeger:
+    image: jaegertracing/all-in-one:1.62.0
+    ports: ["16686:16686", "4317:4317"]
+  finacle-sim:
+    build: { context: ., dockerfile: deploy/Dockerfile.sim }
+    ports: ["8090:8090"]

@@ -1,0 +1,56 @@
+# Model routing. Model names are configuration; which frontier provider/endpoint is acceptable
+# is an open question for the bank's risk and outsourcing teams (Build Guide §21 Q3).
+providers:
+  local_rules:
+    kind: deterministic_local     # in-process deterministic extractors; no model, no network
+    self_hosted: true
+    region: IN
+    zero_retention: true
+  vllm_in:
+    kind: openai_compatible
+    base_url: "http://vllm.ai-zone.internal:8000/v1"
+    self_hosted: true
+    region: IN
+    zero_retention: true
+  anthropic_private:
+    kind: anthropic_messages
+    base_url: "https://anthropic-private-endpoint.example.internal"   # private, zero-retention, India-region arrangement
+    self_hosted: false
+    region: IN
+    zero_retention: true
+
+use_cases:
+  sanction_compiler.extract:
+    data_class: borrower_raw
+    primary:  { provider: vllm_in, model: "self-hosted-open-weight-large" }
+    fallback: { provider: local_rules, model: "sanction-grammar-v1" }
+    budget: { requests_per_minute: 60, max_tokens_per_call: 16000, daily_cost_inr: 5000 }
+  ocr.structure_financials:
+    data_class: borrower_raw
+    primary:  { provider: local_rules, model: "coa-mapper-v1" }
+    fallback: { provider: vllm_in, model: "self-hosted-open-weight-medium" }
+    budget: { requests_per_minute: 600, max_tokens_per_call: 8000, daily_cost_inr: 2000 }
+  covenant_agent.draft_letter:
+    data_class: confidential
+    redact: true
+    primary:  { provider: anthropic_private, model: "claude-sonnet-5-5" }
+    fallback: { provider: local_rules, model: "letter-template-v1" }
+    budget: { requests_per_minute: 30, max_tokens_per_call: 6000, daily_cost_inr: 3000 }
+  ews_analyst.memo:
+    data_class: confidential
+    redact: true
+    primary:  { provider: anthropic_private, model: "claude-sonnet-5-5" }
+    fallback: { provider: vllm_in, model: "self-hosted-open-weight-large" }
+    budget: { requests_per_minute: 30, max_tokens_per_call: 12000, daily_cost_inr: 3000 }
+  portfolio_qa.answer:
+    data_class: internal
+    primary:  { provider: anthropic_private, model: "claude-haiku-5-5" }
+    fallback: { provider: vllm_in, model: "self-hosted-open-weight-medium" }
+    budget: { requests_per_minute: 120, max_tokens_per_call: 4000, daily_cost_inr: 1000 }
+
+pricing_inr_per_1k_tokens:     # illustrative internal chargeback rates for budget enforcement
+  self-hosted-open-weight-large:  { in: 0.10, out: 0.30 }
+  self-hosted-open-weight-medium: { in: 0.05, out: 0.15 }
+  claude-sonnet-5-5:             { in: 0.30, out: 1.50 }
+  claude-haiku-5-5:              { in: 0.10, out: 0.50 }
+  default:                       { in: 0.00, out: 0.00 }

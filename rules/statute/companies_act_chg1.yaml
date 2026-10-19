@@ -1,0 +1,15 @@
+id: statute.companies_act_chg1
+version: 2026.10.0
+status: unverified
+effective_from: 2019-11-02
+source:
+  title: "Companies Act 2013 s.77; Form CHG-1"
+  url: null
+  source_note: "30 days plus additional window with fee. [VERIFY] extension window (cited as 60 days)."
+rules:
+  filing_days: 30
+  additional_window_days: 60
+tests:
+  - { input: { created_on: 2026-01-01, filed_on: 2026-01-25, today: 2026-03-01 }, expect: ON_TIME }
+  - { input: { created_on: 2026-01-01, today: 2026-02-15 }, expect: OVERDUE_IN_ADDITIONAL_WINDOW }
+  - { input: { created_on: 2026-01-01, today: 2026-04-15 }, expect: OVERDUE }

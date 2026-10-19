@@ -1,0 +1,52 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "cause_event_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Cause Event Id"
+    },
+    "new_sanctioned_paise": {
+      "title": "New Sanctioned Paise",
+      "type": "integer"
+    },
+    "node_id": {
+      "title": "Node Id",
+      "type": "string"
+    },
+    "old_sanctioned_paise": {
+      "title": "Old Sanctioned Paise",
+      "type": "integer"
+    },
+    "reason": {
+      "title": "Reason",
+      "type": "string"
+    },
+    "status": {
+      "default": "active",
+      "enum": [
+        "active",
+        "frozen",
+        "capped",
+        "closed"
+      ],
+      "title": "Status",
+      "type": "string"
+    }
+  },
+  "required": [
+    "node_id",
+    "old_sanctioned_paise",
+    "new_sanctioned_paise",
+    "reason"
+  ],
+  "title": "LimitChanged",
+  "type": "object"
+}

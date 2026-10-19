@@ -1,0 +1,27 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "approver": {
+      "title": "Approver",
+      "type": "string"
+    },
+    "document_ids": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Document Ids",
+      "type": "array"
+    },
+    "proposal_id": {
+      "title": "Proposal Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "proposal_id",
+    "approver",
+    "document_ids"
+  ],
+  "title": "SanctionApproved",
+  "type": "object"
+}

@@ -1,0 +1,16 @@
+id: rbi.large_exposures
+version: 2026.10.0
+status: unverified
+effective_from: 2019-04-01
+source:
+  title: "Large Exposures Framework"
+  url: null
+  source_note: "Single 20% (+5% board), group 25% of Tier 1. [VERIFY] current percentages."
+rules:
+  limits_pct_of_tier1: { single: 20, group: 25 }
+  board_extension_pct: 5
+tests:
+  - { input: { tier1_capital_rupees: 1000, exposure_rupees: 200, counterparty: single }, expect: true }
+  - { input: { tier1_capital_rupees: 1000, exposure_rupees: 201, counterparty: single }, expect: false }
+  - { input: { tier1_capital_rupees: 1000, exposure_rupees: 240, counterparty: single, board_approved_extension: true }, expect: true }
+  - { input: { tier1_capital_rupees: 1000, exposure_rupees: 260, counterparty: group }, expect: false }

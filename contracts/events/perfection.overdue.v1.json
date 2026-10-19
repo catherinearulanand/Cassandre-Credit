@@ -1,0 +1,47 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "collateral_id": {
+      "title": "Collateral Id",
+      "type": "string"
+    },
+    "days_overdue": {
+      "title": "Days Overdue",
+      "type": "integer"
+    },
+    "due_date": {
+      "title": "Due Date",
+      "type": "string"
+    },
+    "item": {
+      "enum": [
+        "CERSAI",
+        "CHG-1",
+        "NeSL",
+        "insurance_bank_clause",
+        "title_search",
+        "valuation"
+      ],
+      "title": "Item",
+      "type": "string"
+    },
+    "rule_id": {
+      "title": "Rule Id",
+      "type": "string"
+    },
+    "rule_version": {
+      "title": "Rule Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "collateral_id",
+    "item",
+    "due_date",
+    "days_overdue",
+    "rule_id",
+    "rule_version"
+  ],
+  "title": "PerfectionOverdue",
+  "type": "object"
+}

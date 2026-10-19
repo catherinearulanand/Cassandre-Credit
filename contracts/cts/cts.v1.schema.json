@@ -1,0 +1,877 @@
+{
+  "$defs": {
+    "Citation": {
+      "properties": {
+        "bbox": {
+          "maxItems": 4,
+          "minItems": 4,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Bbox",
+          "type": "array"
+        },
+        "confidence": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Confidence",
+          "type": "number"
+        },
+        "document_id": {
+          "title": "Document Id",
+          "type": "string"
+        },
+        "page": {
+          "minimum": 1,
+          "title": "Page",
+          "type": "integer"
+        },
+        "text_span": {
+          "title": "Text Span",
+          "type": "string"
+        }
+      },
+      "required": [
+        "document_id",
+        "page",
+        "bbox",
+        "text_span",
+        "confidence"
+      ],
+      "title": "Citation",
+      "type": "object"
+    },
+    "CollateralRequirement": {
+      "properties": {
+        "charge_type": {
+          "enum": [
+            "hypothecation",
+            "mortgage",
+            "pledge",
+            "lien",
+            "assignment",
+            "guarantee"
+          ],
+          "title": "Charge Type",
+          "type": "string"
+        },
+        "citations": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Citation"
+          },
+          "title": "Citations",
+          "type": "array"
+        },
+        "collateral_id": {
+          "title": "Collateral Id",
+          "type": "string"
+        },
+        "collateral_type": {
+          "enum": [
+            "stock",
+            "book_debts",
+            "immovable_property",
+            "plant_machinery",
+            "listed_shares",
+            "mutual_funds",
+            "fixed_deposit",
+            "guarantee",
+            "gold"
+          ],
+          "title": "Collateral Type",
+          "type": "string"
+        },
+        "haircut_pct": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "string"
+            }
+          ],
+          "default": "0",
+          "title": "Haircut Pct"
+        },
+        "human_entry": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/HumanEntry"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "margin_pct": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "string"
+            }
+          ],
+          "default": "0.25",
+          "title": "Margin Pct"
+        },
+        "rank": {
+          "enum": [
+            "first",
+            "second",
+            "pari_passu",
+            "subservient",
+            "exclusive"
+          ],
+          "title": "Rank",
+          "type": "string"
+        },
+        "registrations_required": {
+          "default": [],
+          "items": {
+            "enum": [
+              "CERSAI",
+              "CHG-1",
+              "NeSL",
+              "insurance_bank_clause",
+              "title_search",
+              "valuation"
+            ],
+            "type": "string"
+          },
+          "title": "Registrations Required",
+          "type": "array"
+        },
+        "secures_facility_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Secures Facility Ids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "collateral_id",
+        "collateral_type",
+        "charge_type",
+        "rank",
+        "secures_facility_ids"
+      ],
+      "title": "CollateralRequirement",
+      "type": "object"
+    },
+    "Condition": {
+      "properties": {
+        "blocks": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Blocks",
+          "type": "array"
+        },
+        "citations": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Citation"
+          },
+          "title": "Citations",
+          "type": "array"
+        },
+        "condition_id": {
+          "title": "Condition Id",
+          "type": "string"
+        },
+        "description": {
+          "title": "Description",
+          "type": "string"
+        },
+        "due_date": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Due Date"
+        },
+        "evidence_doc_type": {
+          "title": "Evidence Doc Type",
+          "type": "string"
+        },
+        "human_entry": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/HumanEntry"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "kind": {
+          "enum": [
+            "precedent",
+            "subsequent"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "stops_drawdown_when_overdue": {
+          "default": false,
+          "title": "Stops Drawdown When Overdue",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "condition_id",
+        "kind",
+        "description",
+        "evidence_doc_type"
+      ],
+      "title": "Condition",
+      "type": "object"
+    },
+    "CovenantDef": {
+      "properties": {
+        "applies_to_limit_ids": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Applies To Limit Ids",
+          "type": "array"
+        },
+        "citations": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Citation"
+          },
+          "title": "Citations",
+          "type": "array"
+        },
+        "consequence": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Consequence",
+          "type": "array"
+        },
+        "covenant_id": {
+          "title": "Covenant Id",
+          "type": "string"
+        },
+        "cure_period_days": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Cure Period Days",
+          "type": "integer"
+        },
+        "equity_cure_allowed": {
+          "default": false,
+          "title": "Equity Cure Allowed",
+          "type": "boolean"
+        },
+        "first_test_date": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "First Test Date"
+        },
+        "formula": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Formula"
+        },
+        "grace_days": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Grace Days",
+          "type": "integer"
+        },
+        "human_entry": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/HumanEntry"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "klass": {
+          "enum": [
+            "financial",
+            "information",
+            "affirmative",
+            "negative",
+            "esg"
+          ],
+          "title": "Klass",
+          "type": "string"
+        },
+        "max_equity_cures": {
+          "default": 0,
+          "title": "Max Equity Cures",
+          "type": "integer"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "operator": {
+          "anyOf": [
+            {
+              "enum": [
+                ">=",
+                "<=",
+                ">",
+                "<",
+                "=="
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Operator"
+        },
+        "rounding_dp": {
+          "default": 2,
+          "title": "Rounding Dp",
+          "type": "integer"
+        },
+        "test_basis": {
+          "default": "standalone",
+          "enum": [
+            "standalone",
+            "consolidated"
+          ],
+          "title": "Test Basis",
+          "type": "string"
+        },
+        "test_frequency": {
+          "enum": [
+            "quarterly",
+            "half_yearly",
+            "annual",
+            "monthly",
+            "event"
+          ],
+          "title": "Test Frequency",
+          "type": "string"
+        },
+        "threshold": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Threshold"
+        }
+      },
+      "required": [
+        "covenant_id",
+        "klass",
+        "name",
+        "test_frequency"
+      ],
+      "title": "CovenantDef",
+      "type": "object"
+    },
+    "Facility": {
+      "properties": {
+        "amount": {
+          "$ref": "#/$defs/Money"
+        },
+        "benchmark": {
+          "default": "EBLR",
+          "title": "Benchmark",
+          "type": "string"
+        },
+        "citations": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Citation"
+          },
+          "title": "Citations",
+          "type": "array"
+        },
+        "facility_id": {
+          "title": "Facility Id",
+          "type": "string"
+        },
+        "facility_type": {
+          "$ref": "#/$defs/FacilityType"
+        },
+        "human_entry": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/HumanEntry"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "margin_pct": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Margin Pct"
+        },
+        "pricing_spread_bps": {
+          "maximum": 2000,
+          "minimum": 0,
+          "title": "Pricing Spread Bps",
+          "type": "integer"
+        },
+        "receivable_age_cutoff_days": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Receivable Age Cutoff Days"
+        },
+        "repayment_schedule": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/RepaymentInstalment"
+          },
+          "title": "Repayment Schedule",
+          "type": "array"
+        },
+        "tenor_months": {
+          "maximum": 360,
+          "minimum": 1,
+          "title": "Tenor Months",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "facility_id",
+        "facility_type",
+        "amount",
+        "tenor_months",
+        "pricing_spread_bps"
+      ],
+      "title": "Facility",
+      "type": "object"
+    },
+    "FacilityType": {
+      "enum": [
+        "TL",
+        "CC",
+        "OD",
+        "WCDL",
+        "LC",
+        "BG",
+        "BD",
+        "ECB",
+        "SYND"
+      ],
+      "title": "FacilityType",
+      "type": "string"
+    },
+    "HumanEntry": {
+      "description": "Replaces citations for values a human typed. Carries the approval that allowed it.",
+      "properties": {
+        "approval_id": {
+          "title": "Approval Id",
+          "type": "string"
+        },
+        "entered_by": {
+          "title": "Entered By",
+          "type": "string"
+        },
+        "reason": {
+          "title": "Reason",
+          "type": "string"
+        }
+      },
+      "required": [
+        "entered_by",
+        "approval_id",
+        "reason"
+      ],
+      "title": "HumanEntry",
+      "type": "object"
+    },
+    "LimitNode": {
+      "properties": {
+        "citations": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Citation"
+          },
+          "title": "Citations",
+          "type": "array"
+        },
+        "facility_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Facility Id"
+        },
+        "human_entry": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/HumanEntry"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "interchangeable_with": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Interchangeable With",
+          "type": "array"
+        },
+        "node_id": {
+          "title": "Node Id",
+          "type": "string"
+        },
+        "node_type": {
+          "enum": [
+            "group",
+            "obligor",
+            "facility",
+            "sub_limit",
+            "product",
+            "currency",
+            "tenor_bucket"
+          ],
+          "title": "Node Type",
+          "type": "string"
+        },
+        "parent_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Parent Id"
+        },
+        "sanctioned": {
+          "$ref": "#/$defs/Money"
+        },
+        "seasonal_schedule": {
+          "default": [],
+          "items": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "title": "Seasonal Schedule",
+          "type": "array"
+        },
+        "valid_from": {
+          "format": "date",
+          "title": "Valid From",
+          "type": "string"
+        },
+        "valid_to": {
+          "format": "date",
+          "title": "Valid To",
+          "type": "string"
+        }
+      },
+      "required": [
+        "node_id",
+        "parent_id",
+        "node_type",
+        "sanctioned",
+        "valid_from",
+        "valid_to"
+      ],
+      "title": "LimitNode",
+      "type": "object"
+    },
+    "Money": {
+      "properties": {
+        "amount_paise": {
+          "title": "Amount Paise",
+          "type": "integer"
+        },
+        "currency": {
+          "default": "INR",
+          "title": "Currency",
+          "type": "string"
+        }
+      },
+      "required": [
+        "amount_paise"
+      ],
+      "title": "Money",
+      "type": "object"
+    },
+    "RepaymentInstalment": {
+      "properties": {
+        "due_date": {
+          "format": "date",
+          "title": "Due Date",
+          "type": "string"
+        },
+        "principal": {
+          "$ref": "#/$defs/Money"
+        }
+      },
+      "required": [
+        "due_date",
+        "principal"
+      ],
+      "title": "RepaymentInstalment",
+      "type": "object"
+    },
+    "Trigger": {
+      "properties": {
+        "detail": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Detail",
+          "type": "object"
+        },
+        "kind": {
+          "enum": [
+            "rating_linked_pricing",
+            "step_up",
+            "reset"
+          ],
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "detail"
+      ],
+      "title": "Trigger",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "amendment_sanction_ref": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Amendment Sanction Ref"
+    },
+    "collateral": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/CollateralRequirement"
+      },
+      "title": "Collateral",
+      "type": "array"
+    },
+    "conditions": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/Condition"
+      },
+      "title": "Conditions",
+      "type": "array"
+    },
+    "content_hash": {
+      "default": "",
+      "title": "Content Hash",
+      "type": "string"
+    },
+    "covenants": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/CovenantDef"
+      },
+      "title": "Covenants",
+      "type": "array"
+    },
+    "cts_id": {
+      "title": "Cts Id",
+      "type": "string"
+    },
+    "definitions": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "default": {},
+      "title": "Definitions",
+      "type": "object"
+    },
+    "facilities": {
+      "items": {
+        "$ref": "#/$defs/Facility"
+      },
+      "title": "Facilities",
+      "type": "array"
+    },
+    "group_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Group Id"
+    },
+    "limits": {
+      "items": {
+        "$ref": "#/$defs/LimitNode"
+      },
+      "title": "Limits",
+      "type": "array"
+    },
+    "obligor_id": {
+      "title": "Obligor Id",
+      "type": "string"
+    },
+    "review_due": {
+      "format": "date",
+      "title": "Review Due",
+      "type": "string"
+    },
+    "sanction_date": {
+      "format": "date",
+      "title": "Sanction Date",
+      "type": "string"
+    },
+    "sanction_ref": {
+      "title": "Sanction Ref",
+      "type": "string"
+    },
+    "sanctioning_authority": {
+      "title": "Sanctioning Authority",
+      "type": "string"
+    },
+    "sanctioning_authority_power": {
+      "$ref": "#/$defs/Money"
+    },
+    "supersedes_version": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Supersedes Version"
+    },
+    "triggers": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/Trigger"
+      },
+      "title": "Triggers",
+      "type": "array"
+    },
+    "valid_until": {
+      "format": "date",
+      "title": "Valid Until",
+      "type": "string"
+    },
+    "version": {
+      "minimum": 1,
+      "title": "Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "cts_id",
+    "version",
+    "obligor_id",
+    "sanction_ref",
+    "sanctioning_authority",
+    "sanctioning_authority_power",
+    "sanction_date",
+    "valid_until",
+    "review_due",
+    "facilities",
+    "limits"
+  ],
+  "title": "CreditTermSheet",
+  "type": "object"
+}

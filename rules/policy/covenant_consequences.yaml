@@ -1,0 +1,20 @@
+id: policy.covenant_consequences
+version: 2026.10.0
+status: unverified
+effective_from: 2026-04-01
+source:
+  title: "Covenant consequence application policy"
+  url: null
+  source_note: "Build guide 8.7: stop_drawdown applies immediately (reviewable); everything else after human approval."
+rules:
+  default_application: APPROVAL
+  application:
+    stop_drawdown: AUTO
+    cap: APPROVAL
+    reprice: APPROVAL
+    freeze: APPROVAL
+    event_of_default: APPROVAL
+tests:
+  - { input: { consequence: stop_drawdown }, expect: AUTO }
+  - { input: { consequence: "reprice:+50bps" }, expect: APPROVAL }
+  - { input: { consequence: something_new }, expect: APPROVAL }

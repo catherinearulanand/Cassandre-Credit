@@ -1,0 +1,38 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "amendment_sanction_ref": {
+      "title": "Amendment Sanction Ref",
+      "type": "string"
+    },
+    "change_set": {
+      "items": {
+        "additionalProperties": true,
+        "type": "object"
+      },
+      "title": "Change Set",
+      "type": "array"
+    },
+    "cts_id": {
+      "title": "Cts Id",
+      "type": "string"
+    },
+    "new_version": {
+      "title": "New Version",
+      "type": "integer"
+    },
+    "old_version": {
+      "title": "Old Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "cts_id",
+    "old_version",
+    "new_version",
+    "change_set",
+    "amendment_sanction_ref"
+  ],
+  "title": "CtsAmended",
+  "type": "object"
+}

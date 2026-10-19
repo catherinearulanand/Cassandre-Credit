@@ -1,0 +1,19 @@
+id: rbi.prudential_framework
+version: 2026.10.0
+status: unverified
+effective_from: 2019-06-07
+source:
+  title: "Prudential Framework for Resolution of Stressed Assets (7 Jun 2019)"
+  date: 2019-06-07
+  url: null
+  source_note: "30-day review; RP within 180 days of review end; +20% after 180, further +15% after 365. [VERIFY]"
+rules:
+  review_period_days: 30
+  resolution_days_after_review: 180
+  additional_provisions:
+    - { after_days_from_review_end: 180, pct: 20 }
+    - { after_days_from_review_end: 365, pct: 15 }
+tests:
+  - { input: { first_default_on: 2026-01-01, today: 2026-03-01 }, expect: { review_period_end: 2026-01-31, resolution_deadline: 2026-07-30, additional_provision_pct: "0" } }
+  - { input: { first_default_on: 2026-01-01, today: 2026-08-01 }, expect: { review_period_end: 2026-01-31, resolution_deadline: 2026-07-30, additional_provision_pct: "20" } }
+  - { input: { first_default_on: 2026-01-01, today: 2027-03-01 }, expect: { review_period_end: 2026-01-31, resolution_deadline: 2026-07-30, additional_provision_pct: "35" } }

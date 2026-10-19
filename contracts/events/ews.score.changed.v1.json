@@ -1,0 +1,38 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "horizon_months": {
+      "title": "Horizon Months",
+      "type": "integer"
+    },
+    "model_version": {
+      "title": "Model Version",
+      "type": "string"
+    },
+    "pd_equivalent": {
+      "title": "Pd Equivalent",
+      "type": "number"
+    },
+    "reasons": {
+      "items": {
+        "additionalProperties": true,
+        "type": "object"
+      },
+      "title": "Reasons",
+      "type": "array"
+    },
+    "score": {
+      "title": "Score",
+      "type": "number"
+    }
+  },
+  "required": [
+    "score",
+    "horizon_months",
+    "pd_equivalent",
+    "reasons",
+    "model_version"
+  ],
+  "title": "EwsScoreChanged",
+  "type": "object"
+}

@@ -1,0 +1,17 @@
+id: policy.credit_policy
+version: 2026.10.0
+status: unverified
+effective_from: 2026-04-01
+source:
+  title: "Bank Credit Policy FY2026-27 (placeholder parameters)"
+  url: null
+  source_note: "Illustrative bank-policy parameters for build and simulation. Replace with the board-approved policy."
+rules:
+  tenor_cap_months: { TL: 120, CC: 12, OD: 12, WCDL: 12, LC: 12, BG: 60, BD: 6, ECB: 120, SYND: 180 }
+  min_spread_bps_by_rating: { CR1: 50, CR2: 90, CR3: 140, CR4: 200, CR5: 275, CR6: 375 }
+  min_spread_bps_default: 300
+  min_wc_margin_pct: 20
+tests:
+  - { input: { facility_type: TL, tenor_months: 84, spread_bps: 150, rating: CR3 }, expect: [] }
+  - { input: { facility_type: CC, tenor_months: 24, spread_bps: 150, rating: CR3 }, expect: ["tenor 24m > cap 12m for CC"] }
+  - { input: { facility_type: TL, tenor_months: 60, spread_bps: 100, rating: CR4 }, expect: ["spread 100bps < floor 200bps for rating CR4"] }

@@ -1,0 +1,31 @@
+id: rbi.sma
+version: 2026.10.0
+status: unverified
+effective_from: 2019-06-07
+source:
+  title: "Prudential Framework for Resolution of Stressed Assets; IRAC/SMA clarification (Nov 2021)"
+  date: 2019-06-07
+  url: null
+  source_note: "From architecture doc. [VERIFY] day bands and revolving-facility treatment on rbi.org.in."
+verified_by: null
+verified_on: null
+rules:
+  non_revolving:
+    - { bucket: SMA-0, dpd_min: 1,  dpd_max: 30 }
+    - { bucket: SMA-1, dpd_min: 31, dpd_max: 60 }
+    - { bucket: SMA-2, dpd_min: 61, dpd_max: 90 }
+  revolving:
+    - { bucket: SMA-1, days_min: 31, days_max: 60 }
+    - { bucket: SMA-2, days_min: 61, days_max: 90 }
+  npa_after_days: 90
+  classification_time: day_end
+tests:
+  - { name: zero, input: { type: non_revolving, dpd: 0 }, expect: STANDARD }
+  - { name: sma0, input: { type: non_revolving, dpd: 1 }, expect: SMA-0 }
+  - { name: sma1_edge, input: { type: non_revolving, dpd: 31 }, expect: SMA-1 }
+  - { name: sma2_edge, input: { type: non_revolving, dpd: 90 }, expect: SMA-2 }
+  - { name: npa, input: { type: non_revolving, dpd: 91 }, expect: NPA }
+  - { name: rev_sma2, input: { type: revolving, days_over_limit: 61 }, expect: SMA-2 }
+  - { name: rev_30_ok, input: { type: revolving, days_over_limit: 30 }, expect: STANDARD }
+  - { name: rev_worse_of, input: { type: revolving, days_over_limit: 40, dpd: 70 }, expect: SMA-2 }
+  - { name: rev_npa, input: { type: revolving, days_over_limit: 91 }, expect: NPA }

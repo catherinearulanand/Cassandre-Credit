@@ -1,0 +1,17 @@
+id: rbi.penal_charges
+version: 2026.10.0
+status: unverified
+effective_from: 2024-01-01
+source:
+  title: "Fair Lending Practice - Penal Charges in Loan Accounts (18 Aug 2023)"
+  date: 2023-08-18
+  url: null
+  source_note: "Penal charges, not penal interest; no capitalisation; disclosed in agreement. [VERIFY]"
+rules:
+  allowed_kinds: [penal_charge]
+  capitalisation_allowed: false
+  must_be_disclosed_in_agreement: true
+tests:
+  - { input: { kind: penal_charge, capitalise: false, disclosed_in_agreement: true }, expect: ALLOWED }
+  - { input: { kind: penal_interest, capitalise: false, disclosed_in_agreement: true }, expect: REJECTED }
+  - { input: { kind: penal_charge, capitalise: true, disclosed_in_agreement: true }, expect: REJECTED }

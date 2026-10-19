@@ -1,0 +1,46 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "basis": {
+      "title": "Basis",
+      "type": "string"
+    },
+    "exceptions_signed_off_by": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Exceptions Signed Off By"
+    },
+    "line_count": {
+      "title": "Line Count",
+      "type": "integer"
+    },
+    "period_end": {
+      "title": "Period End",
+      "type": "string"
+    },
+    "period_months": {
+      "title": "Period Months",
+      "type": "integer"
+    },
+    "spread_id": {
+      "title": "Spread Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "spread_id",
+    "period_end",
+    "period_months",
+    "basis",
+    "line_count"
+  ],
+  "title": "SpreadCompleted",
+  "type": "object"
+}

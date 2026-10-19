@@ -1,0 +1,32 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "facility_id": {
+      "title": "Facility Id",
+      "type": "string"
+    },
+    "inputs": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "title": "Inputs",
+      "type": "object"
+    },
+    "new_dp_paise": {
+      "title": "New Dp Paise",
+      "type": "integer"
+    },
+    "old_dp_paise": {
+      "title": "Old Dp Paise",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "facility_id",
+    "old_dp_paise",
+    "new_dp_paise",
+    "inputs"
+  ],
+  "title": "DpChanged",
+  "type": "object"
+}

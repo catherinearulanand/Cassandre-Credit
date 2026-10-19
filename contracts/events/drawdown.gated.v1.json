@@ -1,0 +1,56 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "amount_paise": {
+      "title": "Amount Paise",
+      "type": "integer"
+    },
+    "checks": {
+      "items": {
+        "additionalProperties": true,
+        "type": "object"
+      },
+      "title": "Checks",
+      "type": "array"
+    },
+    "decision": {
+      "enum": [
+        "APPROVE",
+        "REJECT",
+        "REFER"
+      ],
+      "title": "Decision",
+      "type": "string"
+    },
+    "facility_id": {
+      "title": "Facility Id",
+      "type": "string"
+    },
+    "latency_ms": {
+      "title": "Latency Ms",
+      "type": "number"
+    },
+    "reasons": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Reasons",
+      "type": "array"
+    },
+    "request_id": {
+      "title": "Request Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "request_id",
+    "facility_id",
+    "amount_paise",
+    "decision",
+    "reasons",
+    "checks",
+    "latency_ms"
+  ],
+  "title": "DrawdownGated",
+  "type": "object"
+}

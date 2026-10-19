@@ -1,0 +1,29 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "collateral_id": {
+      "title": "Collateral Id",
+      "type": "string"
+    },
+    "method": {
+      "title": "Method",
+      "type": "string"
+    },
+    "value_paise": {
+      "title": "Value Paise",
+      "type": "integer"
+    },
+    "valuer": {
+      "title": "Valuer",
+      "type": "string"
+    }
+  },
+  "required": [
+    "collateral_id",
+    "value_paise",
+    "method",
+    "valuer"
+  ],
+  "title": "CollateralRevalued",
+  "type": "object"
+}

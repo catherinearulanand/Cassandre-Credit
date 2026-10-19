@@ -1,0 +1,27 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "new_stage": {
+      "title": "New Stage",
+      "type": "integer"
+    },
+    "old_stage": {
+      "title": "Old Stage",
+      "type": "integer"
+    },
+    "reasons": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Reasons",
+      "type": "array"
+    }
+  },
+  "required": [
+    "old_stage",
+    "new_stage",
+    "reasons"
+  ],
+  "title": "StageChanged",
+  "type": "object"
+}
