@@ -166,3 +166,18 @@ def test_no_invisible_or_bidi_characters_in_source() -> None:
             if _INVISIBLE.search(f.read_text(encoding="utf-8")):
                 bad.append(str(f.relative_to(ROOT)))
     assert bad == []
+
+
+def test_no_control_characters_in_source() -> None:
+    """A stray backspace in a regex once silently disabled a unit pattern (non-raw string)."""
+    bad = []
+    for base in ("libs", "services", "simulators", "ocr", "ml", "agents", "sim", "tools", "tests"):
+        d = ROOT / base
+        if not d.exists():
+            continue
+        for f in d.rglob("*.py"):
+            if "__pycache__" in f.parts:
+                continue
+            if any(ord(c) < 32 and c not in "\n\r\t" for c in f.read_text(encoding="utf-8")):
+                bad.append(str(f.relative_to(ROOT)))
+    assert bad == []

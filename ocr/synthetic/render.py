@@ -22,22 +22,59 @@ import numpy as np
 from domain.coa import BY_CODE
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 from platform_core.money import format_indian_number
-
 from testing.synthetic.financials import UNIT_PAISE, QuarterFinancials
 
 LEVELS = ("clean", "mild", "moderate", "severe")
 
-PL_ORDER = ["revenue_from_operations", "other_income", "total_income", "cost_of_materials",
-            "change_in_inventories", "employee_benefits", "finance_costs", "depreciation_amortisation",
-            "other_expenses", "total_expenses", "pbt", "current_tax", "deferred_tax", "tax_expense", "pat"]
-BS_ORDER = ["share_capital", "other_equity", "total_equity", "lt_borrowings", "lease_liabilities",
-            "deferred_tax_liability", "lt_provisions", "other_non_current_liabilities",
-            "non_current_liabilities", "st_borrowings", "current_maturities_ltd", "trade_payables",
-            "other_current_liabilities", "st_provisions", "current_liabilities",
-            "total_equity_and_liabilities", "net_fixed_assets", "cwip", "intangible_assets",
-            "lt_investments", "deferred_tax_asset", "other_non_current_assets", "non_current_assets",
-            "inventories", "trade_receivables", "cash_and_equivalents", "liquid_investments",
-            "other_current_assets", "current_assets", "total_assets"]
+PL_ORDER = [
+    "revenue_from_operations",
+    "other_income",
+    "total_income",
+    "cost_of_materials",
+    "change_in_inventories",
+    "employee_benefits",
+    "finance_costs",
+    "depreciation_amortisation",
+    "other_expenses",
+    "total_expenses",
+    "pbt",
+    "current_tax",
+    "deferred_tax",
+    "tax_expense",
+    "pat",
+]
+BS_ORDER = [
+    "share_capital",
+    "other_equity",
+    "total_equity",
+    "lt_borrowings",
+    "lease_liabilities",
+    "deferred_tax_liability",
+    "lt_provisions",
+    "other_non_current_liabilities",
+    "non_current_liabilities",
+    "st_borrowings",
+    "current_maturities_ltd",
+    "trade_payables",
+    "other_current_liabilities",
+    "st_provisions",
+    "current_liabilities",
+    "total_equity_and_liabilities",
+    "net_fixed_assets",
+    "cwip",
+    "intangible_assets",
+    "lt_investments",
+    "deferred_tax_asset",
+    "other_non_current_assets",
+    "non_current_assets",
+    "inventories",
+    "trade_receivables",
+    "cash_and_equivalents",
+    "liquid_investments",
+    "other_current_assets",
+    "current_assets",
+    "total_assets",
+]
 # print labels differ by company; the extractor must map them back to chart-of-accounts codes
 LABEL_OVERRIDES = {
     "total_equity": ["Total Equity", "Shareholders' Funds"],
@@ -98,13 +135,21 @@ def _pick_label(rng: random.Random, code: str) -> str:
     return rng.choice(options)
 
 
-def render_statement(rng: random.Random, q: QuarterFinancials, prior: QuarterFinancials | None,
-                     statement: str, level: str, company: str = "Saffron Synthetic Textiles Pvt Ltd",
-                     unit_name: str | None = None) -> RenderedPage:
+def render_statement(
+    rng: random.Random,
+    q: QuarterFinancials,
+    prior: QuarterFinancials | None,
+    statement: str,
+    level: str,
+    company: str = "Saffron Synthetic Textiles Pvt Ltd",
+    unit_name: str | None = None,
+) -> RenderedPage:
     unit_name = unit_name or rng.choice(["lakhs", "lakhs", "thousands", "rupees"])
-    unit_text = {"lakhs": "(₹ in lakhs)", "thousands": "(₹ in '000)", "rupees": "(Amount in ₹)"}[unit_name]
+    unit_text = {"lakhs": "(₹ in lakhs)", "thousands": "(₹ in '000)", "rupees": "(Amount in ₹)"}[
+        unit_name
+    ]
     order = PL_ORDER if statement == "PL" else BS_ORDER
-    title = ("Statement of Profit and Loss" if statement == "PL" else "Balance Sheet")
+    title = "Statement of Profit and Loss" if statement == "PL" else "Balance Sheet"
     font_name = rng.choice(FONT_CANDIDATES)
     size = rng.choice([22, 24, 26])
     row_h = size + 12
@@ -113,7 +158,12 @@ def render_statement(rng: random.Random, q: QuarterFinancials, prior: QuarterFin
     d = ImageDraw.Draw(img)
     f_t, f_b = _font(font_name, size + 6), _font(font_name, size)
     d.text((60, 30), company, fill="black", font=f_t)
-    d.text((60, 70), f"{title} for the quarter ended {q.period_end.strftime('%d %B %Y')}", fill="black", font=f_b)
+    d.text(
+        (60, 70),
+        f"{title} for the quarter ended {q.period_end.strftime('%d %B %Y')}",
+        fill="black",
+        font=f_b,
+    )
     d.text((60, 105), unit_text, fill="black", font=f_b)
     d.text((820, 105), "Current", fill="black", font=f_b)
     d.text((1010, 105), "Previous", fill="black", font=f_b)
@@ -123,7 +173,7 @@ def render_statement(rng: random.Random, q: QuarterFinancials, prior: QuarterFin
     for code in order:
         is_total = BY_CODE[code].is_total
         label = _pick_label(rng, code)
-        fnt = _font(font_name, size) if not is_total else _font(font_name, size)
+        fnt = _font(font_name, size)
         d.text((60 + (0 if is_total else 24), y), label, fill="black", font=fnt)
         cur = _fmt(q.lines[code], unit_name)
         pri = _fmt(prior.lines[code], unit_name) if prior else "-"
@@ -132,13 +182,29 @@ def render_statement(rng: random.Random, q: QuarterFinancials, prior: QuarterFin
         d.text((x1 - cw, y), cur, fill="black", font=fnt)
         d.text((1150 - d.textlength(pri, font=fnt), y), pri, fill="black", font=fnt)
         bbox = ((x1 - cw - 4) / width, (y - 2) / height, (x1 + 4) / width, (y + size + 6) / height)
-        fields.append(GtField(code, label, q.lines[code] * UNIT_PAISE, cur, bbox,
-                              prior.lines[code] * UNIT_PAISE if prior else None))
+        fields.append(
+            GtField(
+                code,
+                label,
+                q.lines[code] * UNIT_PAISE,
+                cur,
+                bbox,
+                prior.lines[code] * UNIT_PAISE if prior else None,
+            )
+        )
         if is_total:
             d.line((560, y - 3, 960, y - 3), fill="black", width=1)
         y += row_h
-    page = RenderedPage(img, fields, unit_text, unit_name, statement, level, font_name,
-                        {"size": size, "period_end": q.period_end.isoformat()})
+    page = RenderedPage(
+        img,
+        fields,
+        unit_text,
+        unit_name,
+        statement,
+        level,
+        font_name,
+        {"size": size, "period_end": q.period_end.isoformat()},
+    )
     page.image = degrade(rng, img, level)
     return page
 
@@ -156,7 +222,9 @@ def degrade(rng: random.Random, img: Image.Image, level: str) -> Image.Image:
     angle = rng.uniform(-params["rot"], params["rot"])
     out = out.rotate(angle, resample=Image.Resampling.BICUBIC, expand=False, fillcolor=255)
     if params["scale"] < 1.0:
-        out = out.resize((int(w * params["scale"]), int(h * params["scale"])), Image.Resampling.BILINEAR)
+        out = out.resize(
+            (int(w * params["scale"]), int(h * params["scale"])), Image.Resampling.BILINEAR
+        )
         out = out.resize((w, h), Image.Resampling.BILINEAR)
     out = out.filter(ImageFilter.GaussianBlur(params["blur"]))
     arr = np.asarray(out, dtype=np.float32)

@@ -1,0 +1,6 @@
+engine rapidocr-onnx==1.4.4  pipeline ocr-pipeline/0.3.0  threshold 0.378
+  accuracy_raw                                   60.97%  [58.43, 63.46]  n=1440
+  accuracy_after_validation                      60.97%  [58.43, 63.46]  n=1440
+  stp_rate                                       48.68%  [46.11, 51.26]  n=1440
+  stp_precision                                  100.00%  [99.45, 100.00]  n=701
+  delivered_accuracy_assuming_perfect_review     100.00%  [99.73, 100.00]  n=1440

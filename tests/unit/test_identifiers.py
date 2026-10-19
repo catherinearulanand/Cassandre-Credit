@@ -143,3 +143,18 @@ def test_detect_unit(header: str, unit: UnitScale | None) -> None:
 def test_decimal_precision() -> None:
     p = parse_amount("0.01")
     assert p is not None and p.value == Decimal("0.01")
+
+
+@pytest.mark.parametrize(
+    "header,unit",
+    [
+        ("(in000）", UnitScale.THOUSANDS),  # full-width bracket, tick and rupee sign lost
+        ("(天in000)", UnitScale.THOUSANDS),  # stray glyph glued in front
+        ("(Amountin)", UnitScale.RUPEES),  # spaces and rupee sign dropped
+        ("(Amountinx)", UnitScale.RUPEES),
+        ("(Amount in ₹ lakhs)", UnitScale.LAKHS),  # a scale word beats "Amount in"
+        ("Balance Sheet as at 31 March 2026", None),
+    ],
+)
+def test_ocr_mangled_unit_headers(header: str, unit: UnitScale | None) -> None:
+    assert detect_unit(header) == unit

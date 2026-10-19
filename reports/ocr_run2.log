@@ -1,0 +1,10 @@
+D:\KADAISI FINAL SHIT\.venv\Lib\site-packages\numpy\_core\fromnumeric.py:3862: RuntimeWarning: Mean of empty slice
+  return _methods._mean(a, axis=axis, dtype=dtype,
+D:\KADAISI FINAL SHIT\.venv\Lib\site-packages\numpy\_core\_methods.py:142: RuntimeWarning: invalid value encountered in scalar divide
+  ret = ret.dtype.type(ret / rcount)
+engine rapidocr-onnx==1.4.4  pipeline ocr-pipeline/0.3.0  threshold 0.155
+  accuracy_raw                                   62.13%  [59.20, 64.97]  n=1080
+  accuracy_after_validation                      62.13%  [59.20, 64.97]  n=1080
+  stp_rate                                       56.94%  [53.97, 59.87]  n=1080
+  stp_precision                                  98.86%  [97.67, 99.45]  n=615
+  delivered_accuracy_assuming_perfect_review     99.35%  [98.67, 99.69]  n=1080

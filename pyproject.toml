@@ -27,7 +27,7 @@ dev-mode-dirs = ["libs", "services", "simulators", "."]
 pythonpath = ["libs", "services", "simulators", "."]
 testpaths = ["tests"]
 addopts = "-q --strict-markers"
-filterwarnings = ["ignore::DeprecationWarning:starlette.*", "ignore:Using `httpx`:DeprecationWarning", "ignore::UserWarning:shap.*"]
+filterwarnings = ["ignore:LightGBM binary classifier:UserWarning", "ignore::DeprecationWarning:starlette.*", "ignore:Using `httpx`:DeprecationWarning", "ignore::UserWarning:shap.*"]
 markers = [
   "slow: long-running (OCR, ML training, load tests)",
   "golden: golden-set evaluations",
@@ -48,6 +48,7 @@ ignore = ["S101", "RUF001", "RUF002", "RUF003", "N818", "UP040", "UP046", "E501"
 "services/finacle_adapter/adapter.py" = ["S311"]
 "tools/**" = ["S603"]
 "sim/**" = ["S311"]
+"ocr/**" = ["S311", "S324"]
 "libs/testing/**" = ["S311"]
 "ocr/synthetic/**" = ["S311"]
 "ml/**" = ["S311", "N803", "N806"]
@@ -60,3 +61,8 @@ explicit_package_bases = true
 ignore_missing_imports = true
 plugins = ["pydantic.mypy"]
 exclude = ['^tests/', '^[.]venv/']
+
+[[tool.mypy.overrides]]
+module = ["ml.*", "ocr.eval.*", "sim.*", "ocr.pipeline.route"]
+disallow_untyped_calls = false
+warn_return_any = false

@@ -142,7 +142,11 @@ def make_sanction(
     spread_tl, spread_cc = floor + rng.choice([25, 50, 75, 100]), floor + rng.choice([10, 25, 50])
     tenor = hist.tl_tenor_quarters * 3
     # pick covenants: always DSCR + Net Debt/EBITDA, plus 2-3 more
-    keys = ["net_debt_ebitda", "dscr", *rng.sample(["iscr", "current_ratio", "tol_tnw", "debt_equity"], k=rng.randint(2, 3))]
+    keys = [
+        "net_debt_ebitda",
+        "dscr",
+        *rng.sample(["iscr", "current_ratio", "tol_tnw", "debt_equity"], k=rng.randint(2, 3)),
+    ]
     q4 = hist.quarters[4]  # first test quarter (needs four quarters for TTM)
     lines: list[str] = []
     fl: dict[str, int] = {}

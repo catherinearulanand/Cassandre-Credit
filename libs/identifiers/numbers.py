@@ -8,6 +8,7 @@ headers ("₹ in lakhs", "Rs. in crores", "(₹ '000)"). Everything is Decimal; 
 from __future__ import annotations
 
 import re
+import unicodedata
 from dataclasses import dataclass
 from decimal import ROUND_HALF_EVEN, Decimal, InvalidOperation
 from enum import Enum
@@ -28,8 +29,14 @@ _UNIT_HEADER_PATTERNS: list[tuple[re.Pattern[str], UnitScale]] = [
     (re.compile(r"(in\s*)?(lakhs?|lacs?|lakh)\b", re.I), UnitScale.LAKHS),
     (re.compile(r"(in\s*)?millions?\b|\bmn\b", re.I), UnitScale.MILLIONS),
     (
-        re.compile(r"'\s*000|\(?\s*(in\s*)?thousands?\s*\)?|\(000\)", re.I),
+        re.compile(r"'\s*000|in\s*'?\s*000|\(?\s*(in\s*)?thousands?\s*\)?|\(000\)", re.I),
         UnitScale.THOUSANDS,
+    ),
+    # "(Amount in INR)" / "(in rupees)" with no scale word means the figures are in rupees. OCR
+    # often drops or misreads the rupee sign ("(Amount in )", "(Amount in 3)"), so match the words.
+    (
+        re.compile(r"amount\s*in(?![a-z]{2})|in\s*(rupees|inr)\b|\(\s*(rs\.?|inr)\s*\)", re.I),
+        UnitScale.RUPEES,
     ),
 ]
 
@@ -49,7 +56,8 @@ class ParsedAmount:
 def detect_unit(header_text: str) -> UnitScale | None:
     """Detect a statement's unit header. Returns None when no unit header is present."""
     # typographic apostrophes and primes all mean the thousands tick in "(₹ ’000)"
-    text = re.sub(r"[`\u2018\u2019\u02bc\u2032\u00b4]", "'", header_text)
+    text = unicodedata.normalize("NFKC", header_text)  # full-width brackets/digits -> ASCII
+    text = re.sub(r"[`\u2018\u2019\u02bc\u2032\u00b4]", "'", text)
     for pat, unit in _UNIT_HEADER_PATTERNS:
         if pat.search(text):
             return unit

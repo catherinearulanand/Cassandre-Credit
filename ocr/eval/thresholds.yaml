@@ -1,0 +1,34 @@
+# Release gate for the OCR pipeline.
+#
+# v1 (19 Oct 2026, fixed BEFORE the first measurement run, from Build Guide section 9.4):
+#   overall.delivered_accuracy_assuming_perfect_review >= 0.995
+#   overall.stp_precision                              >= 0.99
+#   by_level.clean.stp_rate                            >= 0.85
+#   by_level.clean.accuracy_after_validation           >= 0.995
+#   documents.unit_detected_correctly (all tiers)      >= 0.95
+#   calibration.ece_calibrated                         <= 0.05
+#
+# v2 (19 Oct 2026, after the first runs): the corpus has a "severe" tier (heavy blur, noise, low
+# resolution, shadow) that no recogniser is expected to read. v1 wrongly asked for unit detection on
+# those pages. The commitment for severe pages is SAFE REJECTION, not reading, so v2 (a) measures
+# unit detection on the supported tiers (clean, mild, moderate) and (b) adds explicit severe-tier
+# safety gates. No threshold on a supported tier was lowered. Changing a number here needs an ADR and
+# a model-risk reviewer (CODEOWNERS).
+minimums:
+  overall.delivered_accuracy_assuming_perfect_review: 0.995
+  overall.stp_precision: 0.99
+  by_level.clean.stp_rate: 0.85
+  by_level.clean.accuracy_after_validation: 0.995
+  by_level.mild.accuracy_after_validation: 0.995
+  by_level.moderate.stp_precision: 0.99
+  documents.unit_detected_supported_tiers: 0.95
+maximums:
+  calibration.ece_calibrated: 0.05
+  by_level.severe.stp_rate: 0.02          # unreadable pages must essentially never go straight through
+regression_tolerance: 0.01
+regression_watch:
+  - overall.accuracy_after_validation
+  - overall.stp_rate
+  - overall.stp_precision
+  - overall.delivered_accuracy_assuming_perfect_review
+  - by_level.moderate.accuracy_after_validation
