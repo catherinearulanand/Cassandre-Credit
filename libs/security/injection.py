@@ -82,8 +82,30 @@ _RULES: list[tuple[str, float, re.Pattern[str]]] = [
             re.I,
         ),
     ),
+    (
+        "disregard_above",
+        0.6,
+        re.compile(
+            r"(disregard|forget|ignore)\s+(everything|anything|all)\s+(above|before|prior)"
+            r"|forget\s+your\s+(instructions|rules|guidelines)",
+            re.I,
+        ),
+    ),
+    (
+        "treat_as_satisfied",
+        0.6,
+        re.compile(
+            r"treat\s+(the\s+)?(covenant|ratio|test|condition|account)s?\s+as\s+"
+            r"(satisfied|met|complied|compliant|passed)",
+            re.I,
+        ),
+    ),
     ("encoded_payload", 0.25, re.compile(r"(base64|rot13|decode\s+the\s+following)", re.I)),
 ]
+
+
+_LEET = str.maketrans("013457@$", "oieatsas")
+_LEET_RULES = {"override_instructions", "new_role", "disregard_above", "treat_as_satisfied"}
 
 
 @dataclass
@@ -115,6 +137,12 @@ def screen(
         for name, weight, pat in _RULES[:2]:
             if name not in hits and pat.search(collapsed):
                 hits.append(f"{name}:spaced")
+                score += weight
+    leet = t.translate(_LEET)  # "1gn0re pr3v1ous" -> "ignore previous"
+    if leet != t:
+        for name, weight, pat in _RULES:
+            if name in _LEET_RULES and name not in hits and pat.search(leet):
+                hits.append(f"{name}:leet")
                 score += weight
     score = min(score, 1.0)
     action = (

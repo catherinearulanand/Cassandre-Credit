@@ -468,12 +468,12 @@
   },
   "latency": {
     "engine_hardware": "CPU (ONNX Runtime), single process",
-    "clean": 3.263812333345413,
-    "mild": 3.614276566678503,
-    "moderate": 4.617918399977498,
-    "severe": 3.315393999995043,
-    "mean_seconds_per_page": 3.702850324999114,
-    "p95_seconds_per_page": 5.727869489966542
+    "clean": 6.676634433330037,
+    "mild": 6.5561107333439095,
+    "moderate": 6.824666633328889,
+    "severe": 5.685027266658532,
+    "mean_seconds_per_page": 6.435609766665341,
+    "p95_seconds_per_page": 9.334168244997272
   },
   "tamper_detection": {
     "inconsistent": {
@@ -507,5 +507,5 @@
       }
     }
   },
-  "wall_seconds": 63.5
+  "wall_seconds": 113.6
 }

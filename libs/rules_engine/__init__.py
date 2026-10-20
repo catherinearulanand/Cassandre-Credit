@@ -8,6 +8,7 @@ that was in force then.
 
 from __future__ import annotations
 
+import copy
 import datetime as dt
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -49,8 +50,12 @@ class RulePack(BaseModel):
 
     @model_validator(mode="after")
     def _consistent(self) -> RulePack:
-        if self.status == "verified" and not (self.verified_by and self.verified_on):
+        if self.status == "verified" and not (
+            self.verified_by and self.verified_by.strip() and self.verified_on
+        ):
             raise ValueError("a verified pack needs verified_by and verified_on")
+        if self.verified_on is not None and self.verified_on > SystemClock().today():
+            raise ValueError("verified_on cannot be in the future")
         if self.effective_to is not None and self.effective_to <= self.effective_from:
             raise ValueError("effective_to must be after effective_from")
         return self
@@ -66,6 +71,7 @@ class Decision:
     rule_id: str
     rule_version: str
     details: dict[str, Any] = field(default_factory=dict)
+    pack_status: str = "unknown"  # unverified | verified: a consumer can refuse unverified results
 
 
 Evaluator = Callable[[dict[str, Any], dict[str, Any]], tuple[Any, str, dict[str, Any]]]
@@ -163,7 +169,7 @@ class RuleRegistry:
         return in_force[-1]
 
     def params(self, rule_id: str, *, as_of: date | None = None) -> dict[str, Any]:
-        return self.pack(rule_id, as_of=as_of).rules
+        return copy.deepcopy(self.pack(rule_id, as_of=as_of).rules)  # callers cannot mutate a pack
 
     # ---- evaluation -----------------------------------------------------------------
     def evaluate(
@@ -181,7 +187,7 @@ class RuleRegistry:
             raise ValidationFailure(
                 f"{rule_id}: required fact {exc} is missing", code="rule_fact_missing"
             ) from exc
-        return Decision(result, explanation, pack.id, pack.version, details)
+        return Decision(result, explanation, pack.id, pack.version, details, pack.status)
 
     def run_embedded_tests(self) -> list[str]:
         """Run every pack's embedded tests. Returns failure messages (empty = pass)."""

@@ -84,6 +84,7 @@ class CovenantTestRecord(BaseModel):
     rule_versions: dict[str, str] = {}
     tested_at: datetime
     notes: list[str] = []
+    equity_cure_applied: str | None = None  # approval id of the cure used; the CALLER records it
 
 
 class SignalSeverity(StrEnum):

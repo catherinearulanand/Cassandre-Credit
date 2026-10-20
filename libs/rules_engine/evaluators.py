@@ -15,7 +15,23 @@ from rules_engine import evaluator
 
 
 def _d(v: Any) -> date:
-    return v if isinstance(v, date) else date.fromisoformat(str(v))
+    if isinstance(v, date):
+        return v
+    try:
+        return date.fromisoformat(str(v))
+    except ValueError as exc:
+        raise ValidationFailure(f"not a valid ISO date: {v!r}", code="rule_fact_invalid") from exc
+
+
+def _flag(f: dict[str, Any], name: str, default: bool | None = None) -> bool:
+    """A boolean fact. Strings like "false" or "no" are rejected, not guessed at."""
+    if name not in f:
+        if default is None:
+            raise KeyError(name)
+        return default
+    if not isinstance(f[name], bool):
+        raise ValidationFailure(f"{name} must be a boolean", code="rule_fact_invalid")
+    return bool(f[name])
 
 
 # ------------------------------------------------------------------ SMA / IRAC ----------
@@ -76,12 +92,12 @@ def irac(p: dict[str, Any], f: dict[str, Any]) -> tuple[Any, str, dict[str, Any]
     if dpd <= int(p["npa_after_days"]):
         cls = "STANDARD"
     else:
-        months_npa = int(f.get("months_as_npa", 0))
+        months_npa = _count(f, "months_as_npa")
         cls = "SUBSTANDARD"
         for band in p["classes"]:
             if int(band["from_months"]) <= months_npa < int(band.get("to_months", 10**6)):
                 cls = str(band["class"])
-        if f.get("loss_identified"):
+        if _flag(f, "loss_identified", default=False):
             cls = "LOSS"
     if not isinstance(f["secured"], bool):
         raise ValidationFailure("secured must be a boolean", code="rule_fact_invalid")
@@ -93,7 +109,7 @@ def irac(p: dict[str, Any], f: dict[str, Any]) -> tuple[Any, str, dict[str, Any]
 @evaluator("rbi.crilc")
 def crilc(p: dict[str, Any], f: dict[str, Any]) -> tuple[Any, str, dict[str, Any]]:
     threshold_paise = int(Decimal(str(p["reporting_threshold_rupees"])) * 100)
-    exp = int(f["aggregate_exposure_paise"])
+    exp = _count(f, "aggregate_exposure_paise")
     reportable = exp >= threshold_paise
     return (
         reportable,
@@ -170,7 +186,15 @@ def rfa(p: dict[str, Any], f: dict[str, Any]) -> tuple[Any, str, dict[str, Any]]
     if not issued:
         return False, "no show-cause notice recorded", {}
     window_end = _d(issued) + timedelta(days=int(p["show_cause_min_response_days"]))
+    today = _d(f["today"])
+    if _d(issued) > today:
+        raise ValidationFailure("show-cause issued in the future", code="rule_fact_invalid")
     if f.get("response_received_on"):
+        received = _d(f["response_received_on"])
+        if received < _d(issued) or received > today:
+            raise ValidationFailure(
+                "response date outside the notice period", code="rule_fact_invalid"
+            )
         return (
             True,
             "response received; committee may decide",
@@ -208,7 +232,7 @@ def prudential(p: dict[str, Any], f: dict[str, Any]) -> tuple[Any, str, dict[str
     review_end = first_default + timedelta(days=int(p["review_period_days"]))
     deadline = review_end + timedelta(days=int(p["resolution_days_after_review"]))
     extra = Decimal(0)
-    if not f.get("plan_implemented"):
+    if not _flag(f, "plan_implemented", default=False):
         for step in p["additional_provisions"]:
             if today > review_end + timedelta(days=int(step["after_days_from_review_end"])):
                 extra += Decimal(str(step["pct"]))
@@ -282,13 +306,17 @@ def credit_policy(p: dict[str, Any], f: dict[str, Any]) -> tuple[Any, str, dict[
     violations: list[str] = []
     ft = f["facility_type"]
     cap = p["tenor_cap_months"].get(ft)
-    if cap is not None and int(f["tenor_months"]) > int(cap):
+    if cap is None:
+        violations.append(f"unknown facility type {ft!r}: no policy tenor cap")
+    elif _count(f, "tenor_months") > int(cap):
         violations.append(f"tenor {f['tenor_months']}m > cap {cap}m for {ft}")
     floor = p["min_spread_bps_by_rating"].get(f.get("rating", ""), p["min_spread_bps_default"])
-    if int(f["spread_bps"]) < int(floor):
+    if _count(f, "spread_bps") < int(floor):
         violations.append(
             f"spread {f['spread_bps']}bps < floor {floor}bps for rating {f.get('rating')}"
         )
+    if ft in ("CC", "OD", "WCDL") and f.get("margin_pct") is None:
+        violations.append("working-capital facility without a stated margin")
     if f.get("margin_pct") is not None:
         mn = Decimal(str(p["min_wc_margin_pct"]))
         if Decimal(str(f["margin_pct"])) * 100 < mn:
@@ -316,7 +344,7 @@ def consequences(p: dict[str, Any], f: dict[str, Any]) -> tuple[Any, str, dict[s
 
 @evaluator("policy.monitoring")
 def monitoring(p: dict[str, Any], f: dict[str, Any]) -> tuple[Any, str, dict[str, Any]]:
-    overdue = int(f["days_overdue"])
+    overdue = _count(f, "days_overdue")
     action = "none"
     for step in p["chase_sequence"]:
         if overdue >= int(step["after_days_overdue"]):
@@ -328,9 +356,11 @@ def monitoring(p: dict[str, Any], f: dict[str, Any]) -> tuple[Any, str, dict[str
 def ews_indicators(p: dict[str, Any], f: dict[str, Any]) -> tuple[Any, str, dict[str, Any]]:
     metrics: dict[str, Any] = f["metrics"]
     hits: list[str] = []
+    missing: list[str] = []
     for ind in p["indicators"]:
         v = metrics.get(ind["metric"])
         if v is None:
+            missing.append(str(ind["id"]))  # not evaluated: reported, never silently "clear"
             continue
         v, t = Decimal(str(v)), Decimal(str(ind["threshold"]))
         op = ind["operator"]
@@ -345,7 +375,11 @@ def ews_indicators(p: dict[str, Any], f: dict[str, Any]) -> tuple[Any, str, dict
         )
         if fired:
             hits.append(str(ind["id"]))
-    return hits, f"{len(hits)} indicator(s) fired", {}
+    return (
+        hits,
+        f"{len(hits)} indicator(s) fired; {len(missing)} not evaluable",
+        {"not_evaluated": missing},
+    )
 
 
 @evaluator("policy.covenant_library")

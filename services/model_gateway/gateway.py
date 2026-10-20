@@ -17,6 +17,7 @@ from __future__ import annotations
 import json
 import re
 import time
+import unicodedata
 from collections import defaultdict, deque
 from dataclasses import dataclass, field
 from decimal import Decimal
@@ -89,8 +90,26 @@ SYSTEM_TEMPLATE = (
 
 
 def _escape_block(text: str) -> str:
-    """Untrusted text must not be able to close its own <data> block or open a new one."""
-    return re.sub(r"<(/?)(data)", r"&lt;\1\2", text, flags=re.I)
+    """Untrusted text must not be able to close its own <data> block or open a new one.
+
+    Normalises first (full-width brackets, zero-width characters) and tolerates whitespace inside
+    the tag, so the usual disguises of "</data>" are all neutralised."""
+    t = unicodedata.normalize("NFKC", text)
+    t = "".join(ch for ch in t if unicodedata.category(ch) != "Cf")
+    return re.sub(r"<\s*(/?)\s*(data)", r"&lt;\1\2", t, flags=re.I)
+
+
+def _is_constrained(schema: dict[str, Any] | None) -> bool:
+    """A real constraint: an object schema with named, typed properties. ``{}`` or
+    ``{"type": "string"}`` would let free text through and do not count."""
+    if not schema or schema.get("type") != "object":
+        return False
+    props = schema.get("properties")
+    return (
+        isinstance(props, dict)
+        and len(props) > 0
+        and all(isinstance(v, dict) and v for v in props.values())
+    )
 
 
 def _restore_tree(obj: Any, restore: Any) -> Any:
@@ -220,7 +239,9 @@ class ModelGateway:
                 "untrusted content contains instruction-like text; routed to human review"
             )
 
-        if any(v.action == "constrain" for v in verdicts.values()) and req.output_schema is None:
+        if any(v.action == "constrain" for v in verdicts.values()) and not _is_constrained(
+            req.output_schema
+        ):
             self._log(req, route, None, "blocked_constrained_freetext", 0, 0, 0.0, False, False, {})
             raise InjectionBlocked(
                 "content looks instruction-like: only schema-constrained output is permitted"
@@ -313,7 +334,7 @@ class ModelGateway:
             raise PolicyViolation("borrower_raw data may only reach self-hosted models")
         # Redaction is unconditional for every non-self-hosted provider. ``redact: false`` in
         # config cannot switch it off: that would be a data-leak configuration, not a choice.
-        return _Redactor(req.person_names)
+        return _Redactor(req.person_names or [])
 
     def _call_with_repair(
         self, provider: Provider, model: str, system: str, user: str, req: LlmRequest

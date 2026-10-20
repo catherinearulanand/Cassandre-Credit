@@ -110,13 +110,15 @@ def parse_amount(text: str, *, cr_means: str | None = None) -> ParsedAmount | No
         negative, s = True, s[:-1].strip()
     if s.startswith("-") or s.startswith("−"):
         negative, s = True, s[1:].strip()
+    if re.search(r"\d\s+\d", s):
+        return None  # "12 34" is two columns, never 1234
     s = s.replace(" ", "")
     # Commas must follow Indian (1,23,45,678) or western (12,345,678) grouping exactly;
     # anything else (European "1.234,56", "1,000,00", "12,34,5") is rejected, not guessed.
     if "," in s:
         whole = s.split(".", 1)[0]
-        indian = re.fullmatch(r"\d{1,2}(,\d{2})*,\d{3}", whole)
-        western = re.fullmatch(r"\d{1,3}(,\d{3})+", whole)
+        indian = re.fullmatch(r"[1-9]\d?(,\d{2})*,\d{3}", whole)
+        western = re.fullmatch(r"[1-9]\d{0,2}(,\d{3})+", whole)
         if not (indian or western):
             return None
         if "." in s and s.rfind(",") > s.index("."):

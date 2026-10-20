@@ -19,6 +19,17 @@ from platform_core.clock import Clock
 from platform_core.errors import ConflictError, NotFoundError
 from platform_core.ids import new_id
 
+KIND_PERMISSION: dict[str, Permission] = {
+    "consequence": Permission.CONSEQUENCE_APPROVE,
+    "waiver": Permission.WAIVER_APPROVE,
+    "letter": Permission.LETTER_SEND,
+    "fraud_classification": Permission.RFA_CLASSIFY,
+    "ots": Permission.OTS_APPROVE,
+    "limit_change": Permission.LIMIT_CHANGE,
+    "deviation_clearance": Permission.DOC_DEVIATION_CLEAR,
+    "stage_change": Permission.CASE_DECIDE,
+}
+
 
 class CaseState(StrEnum):
     OPEN = "open"
@@ -113,9 +124,16 @@ class CaseService:
         payload: dict[str, Any],
         proposed_by: str,
         proposer_kind: str,
-        required_permission: Permission,
+        required_permission: Permission | None = None,
         on_behalf_of: str | None = None,
     ) -> Proposal:
+        # The right needed to decide is a property of the KIND of proposal, not the proposer's choice.
+        mapped = KIND_PERMISSION.get(kind)
+        if mapped is None:
+            raise ConflictError(f"unknown proposal kind {kind!r}")
+        if required_permission is not None and required_permission != mapped:
+            raise ConflictError("proposer cannot choose a different approval permission")
+        required_permission = mapped
         case = self.get(case_id)
         if case.state in (CaseState.CLOSED,):
             raise ConflictError("case closed")

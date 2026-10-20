@@ -88,6 +88,13 @@ class Calibrator:
 
 
 LABEL_FLOOR = 0.90
+BLOCKING_FLAGS = (
+    "rescan_recommended",
+    "column_binding",
+    "single_numeric_column",
+    "unit_format_conflict",
+    "unit_header_not_found",
+)
 
 
 def hard_blocked(
@@ -105,7 +112,7 @@ def hard_blocked(
         results = evaluate_identities(ext)
     return (
         ext.unit is None
-        or any(f.startswith("rescan_recommended") for f in ext.doc_flags)
+        or any(f.startswith(BLOCKING_FLAGS) for f in ext.doc_flags)
         or bool(ef.validations)
         or ef.auto_corrected_from is not None
         or bool(ext.duplicates and ef.code in ext.duplicates)

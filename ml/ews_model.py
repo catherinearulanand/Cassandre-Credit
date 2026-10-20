@@ -14,7 +14,7 @@ from typing import Any
 import lightgbm as lgb
 import numpy as np
 import shap
-from sklearn.isotonic import IsotonicRegression
+from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import average_precision_score, brier_score_loss, roc_auc_score
 from testing.synthetic.reference import reference_ratio
 
@@ -122,7 +122,7 @@ def build_rows(
                 "dscr": _f(ratios["dscr"], 2.0),
                 "iscr": _f(ratios["iscr"], 3.0),
                 "current_ratio": _f(ratios["current_ratio"], 1.3),
-                "net_debt_ebitda": _f(ratios["net_debt_ebitda"], 2.0),
+                "net_debt_ebitda": _f(ratios["net_debt_ebitda"], 99.0),
                 "pat_margin": q["pat"] / rev,
                 "receivable_days": q["trade_receivables"] / rev * 90,
                 "dscr_delta": _f(ratios["dscr"], 2.0) - _f(prev.get("dscr"), 2.0),
@@ -206,8 +206,15 @@ def train_eval(
     test_q: range,
     capacity: float = 0.10,
     seed: int = 11,
+    test_obligors: set[str] | None = None,
 ) -> ModelReport:
+    """Out-of-time AND (when ``test_obligors`` is given) obligor-disjoint evaluation.
+
+    Train/calibration use only obligors outside ``test_obligors``; the test set is those held-out
+    obligors in the newest quarters. The caller sets ``train_q`` so that label horizons of training
+    rows end before the calibration quarter (an embargo), so no label overlaps calibration/test."""
     use = [r for r in rows if r[target] >= 0]
+    held = test_obligors or set()
 
     def x(rs: list[dict[str, Any]]) -> np.ndarray:
         return np.array([[r[f] for f in FEATURES] for r in rs], dtype=float)
@@ -215,9 +222,9 @@ def train_eval(
     def y(rs: list[dict[str, Any]]) -> np.ndarray:
         return np.array([r[target] for r in rs], dtype=int)
 
-    tr = [r for r in use if r["q"] in train_q]
-    ca = [r for r in use if r["q"] == calib_q]
-    te = [r for r in use if r["q"] in test_q]
+    tr = [r for r in use if r["q"] in train_q and r["obligor"] not in held]
+    ca = [r for r in use if r["q"] == calib_q and r["obligor"] not in held]
+    te = [r for r in use if r["q"] in test_q and (not held or r["obligor"] in held)]
     model = lgb.LGBMClassifier(
         n_estimators=250,
         learning_rate=0.04,
@@ -231,10 +238,17 @@ def train_eval(
         verbose=-1,
     )
     model.fit(x(tr), y(tr))
-    iso = IsotonicRegression(out_of_bounds="clip", y_min=0, y_max=1)
-    iso.fit(_proba(model, x(ca)), y(ca))
+
+    # Platt scaling on the logit: stable on a few hundred calibration rows, where isotonic
+    # regression produces step functions that saturate at 0 and 1
+    def logit(a: np.ndarray) -> np.ndarray:
+        a = np.clip(a, 1e-4, 1 - 1e-4)
+        return np.log(a / (1 - a)).reshape(-1, 1)
+
+    platt = LogisticRegression(C=10.0)
+    platt.fit(logit(_proba(model, x(ca))), y(ca))
     p_raw = _proba(model, x(te))
-    p = iso.predict(p_raw)
+    p = platt.predict_proba(logit(p_raw))[:, 1]
     yt = y(te)
     k = max(1, round(capacity * len(te)))
     order = np.argsort(-p_raw)
@@ -245,8 +259,13 @@ def train_eval(
     rec = float(yt[top].sum() / max(1, yt.sum()))
     brng = np.random.default_rng(seed)
     boots = []
-    for _ in range(400):
-        idx = brng.integers(0, len(yt), len(yt))
+    groups: dict[str, list[int]] = {}
+    for i, r in enumerate(te):
+        groups.setdefault(r["obligor"], []).append(i)
+    glist = list(groups.values())
+    for _ in range(400):  # cluster bootstrap: resample obligors, not rows
+        pick = brng.integers(0, len(glist), len(glist))
+        idx = np.array([i for g in pick for i in glist[g]])
         if yt[idx].min() != yt[idx].max():
             boots.append(roc_auc_score(yt[idx], p_raw[idx]))
     auc_ci = (
@@ -278,11 +297,27 @@ def train_eval(
     # rules-only and naive baselines on the same test rows
     rule = np.array([r["rule_hits"] for r in te])
     dpd = np.array([r["dpd_max"] for r in te], dtype=float)
+    persistence = (
+        np.array([r["open_breaches"] for r in te], dtype=float)
+        if target == "y_breach"
+        else np.array([float(r["dpd_max"] >= 61) for r in te])
+    )
     baselines = {
         "rules_only_indicator_count_auc": float(roc_auc_score(yt, rule)),
         "current_dpd_only_auc": float(roc_auc_score(yt, dpd)),
+        "persistence_auc": float(roc_auc_score(yt, persistence)),
         "random_auc": 0.5,
     }
+    if target == "y_breach":
+        # how much of the skill is just "already in breach stays in breach"? Score only the
+        # rows that are NOT in breach today: those positives are genuinely new breaches.
+        fresh = np.array([r["open_breaches"] == 0 for r in te])
+        metrics["rows_not_already_in_breach"] = int(fresh.sum())
+        metrics["new_breach_positives"] = int(yt[fresh].sum())
+        if fresh.sum() > 0 and yt[fresh].min() != yt[fresh].max():
+            metrics["auc_on_new_breaches_only"] = float(roc_auc_score(yt[fresh], p_raw[fresh]))
+            ps = np.array([r["min_headroom_pct"] for r in te])[fresh]
+            metrics["headroom_only_auc_on_new_breaches"] = float(roc_auc_score(yt[fresh], -ps))
     # lead time (EWS only): of obligors that reach SMA-2 in the test window, flagged >= 1 quarter early
     if target == "y_ews":
         by_ob: dict[str, list[tuple[int, bool]]] = {}
@@ -315,10 +350,15 @@ def train_eval(
             }
         )
     imp = sorted(zip(FEATURES, np.abs(sv).mean(axis=0), strict=True), key=lambda t: -t[1])[:8]
-    mon = {
+    mon: dict[str, Any] = {
         "psi_score_train_vs_test": psi(_proba(model, x(tr)), p_raw),
         "max_feature_psi": max(psi(x(tr)[:, j], x(te)[:, j]) for j in range(len(FEATURES))),
     }
+    mon["psi_action"] = (
+        "investigate"
+        if mon["psi_score_train_vs_test"] > 0.25 or mon["max_feature_psi"] > 0.25
+        else "ok"
+    )
     return ModelReport(
         name,
         target,
@@ -327,6 +367,9 @@ def train_eval(
             "calibration_quarter": calib_q,
             "test_quarters": [test_q.start, test_q.stop - 1],
             "train_rows": len(tr),
+            "obligor_disjoint": bool(held),
+            "test_obligors": len(held),
+            "embargo": "train label horizons end before the calibration quarter",
         },
         metrics,
         baselines,

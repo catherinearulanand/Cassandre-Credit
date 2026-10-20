@@ -77,7 +77,7 @@ class AuditLog:
         draft = AuditEntry(
             seq=len(self._entries),
             entry_id=new_id("AUD"),
-            at=self._clock.now(),
+            at=max(self._clock.now(), self._entries[-1].at) if self._entries else self._clock.now(),
             actor_kind=actor_kind,
             actor_id=actor_id,
             on_behalf_of=on_behalf_of,

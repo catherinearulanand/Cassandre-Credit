@@ -9,6 +9,7 @@ from dataclasses import dataclass, field
 
 import numpy as np
 from identifiers.numbers import ParsedAmount, parse_amount
+from rapidfuzz import fuzz
 
 from ocr.pipeline.engine import Word
 
@@ -177,6 +178,8 @@ def to_cell(w: Word) -> Cell | None:
         return None
     raw = w.text.strip()
     fixed = raw.translate(_CONFUSIONS) if any(c.isalpha() or c == "|" for c in raw) else raw
+    if re.search(r"\d\s+\d", fixed):
+        return None  # two figures in one box that could not be separated: do not join them
     fixed = re.sub(r"\s+", "", fixed)
     p = parse_amount(fixed)
     if p is None:
@@ -184,10 +187,17 @@ def to_cell(w: Word) -> Cell | None:
     return Cell(w, p, fixed, repaired=fixed != raw)
 
 
-def build_table(words: list[Word], page_width: float) -> list[TableRow]:
-    rows = group_rows(
-        split_merged_numbers(deskew_words(words, estimate_skew_degrees(words)), page_width)
-    )
+class TableList(list[TableRow]):
+    """Table rows plus structural warnings about the page (column binding, single column)."""
+
+    def __init__(self, rows: list[TableRow] | None = None) -> None:
+        super().__init__(rows or [])
+        self.flags: list[str] = []
+
+
+def build_table(words: list[Word], page_width: float) -> TableList:
+    words_deskewed = deskew_words(words, estimate_skew_degrees(words))
+    rows = group_rows(split_merged_numbers(words_deskewed, page_width))
     table: list[TableRow] = []
     for r in rows:
         cells = [c for w in r.words if (c := to_cell(w)) is not None]
@@ -200,21 +210,62 @@ def build_table(words: list[Word], page_width: float) -> list[TableRow]:
             and sum(ch.isalpha() for ch in w.text) >= 0.5 * max(1, len(w.text.replace(" ", "")))
         ]
         table.append(TableRow(label_words, cells, r.y, " ".join(w.text for w in label_words)))
-    # columns: cluster right edges of numeric cells; the two most-populated clusters, left to right
+    # columns: cluster right edges of numeric cells; bind roles from the "Current"/"Previous" headers
+    # (a swapped or single-column page must be detected, not assumed to be [current, previous])
+    out = TableList(table)
     edges = sorted(c.word.x1 for t in table for c in t.cells)
     if not edges:
-        return table
+        return out
     gap = 0.06 * page_width
     clusters: list[list[float]] = [[edges[0]]]
     for e in edges[1:]:
         if e - clusters[-1][-1] > gap:
             clusters.append([])
         clusters[-1].append(e)
-    top = sorted(sorted(clusters, key=len, reverse=True)[:2], key=lambda c: sum(c) / len(c))
-    centres = [sum(c) / len(c) for c in top]
+    big = [c for c in clusters if len(c) >= 3]
+    ranked = sorted(big or clusters, key=len, reverse=True)
+    centres_x1 = [sum(c) / len(c) for c in ranked]
+
+    def cluster_of(c: Cell) -> int | None:
+        k = min(range(len(centres_x1)), key=lambda i: abs(c.word.x1 - centres_x1[i]))
+        return k if abs(c.word.x1 - centres_x1[k]) <= gap else None
+
+    # mean cell-centre of each cluster, to compare with header word centres
+    sums: dict[int, list[float]] = {}
     for t in table:
         for c in t.cells:
-            k = min(range(len(centres)), key=lambda i: abs(c.word.x1 - centres[i]))
-            if abs(c.word.x1 - centres[k]) <= gap:
-                t.columns[k] = c
-    return table
+            k = cluster_of(c)
+            if k is not None:
+                sums.setdefault(k, []).append(c.word.xc)
+    centre_xc = {k: sum(v) / len(v) for k, v in sums.items()}
+    first_numeric_y = min(t.y for t in table if t.cells)
+    heads: dict[str, float] = {}
+    for w in words_deskewed:
+        if w.yc >= first_numeric_y:
+            continue
+        txt = re.sub(r"[^a-z]", "", w.text.lower())
+        if not 4 <= len(txt) <= 13:
+            continue
+        for role, name in (("current", "current"), ("previous", "previous")):
+            if fuzz.ratio(txt, name) >= 70:
+                heads[role] = w.xc
+    role_cluster: dict[str, int] = {}
+    for role, hx in heads.items():
+        if centre_xc:
+            k = min(centre_xc, key=lambda i: abs(centre_xc[i] - hx))
+            if abs(centre_xc[k] - hx) <= 0.14 * page_width:
+                role_cluster[role] = k
+    if len(role_cluster) == 2 and role_cluster["current"] != role_cluster["previous"]:
+        order = {role_cluster["current"]: 0, role_cluster["previous"]: 1}
+    else:
+        out.flags.append("column_binding_uncertain")
+        positional = sorted(centre_xc, key=lambda i: centre_xc[i])[:2]
+        order = {k: i for i, k in enumerate(positional)}
+        if len(centre_xc) < 2:
+            out.flags.append("single_numeric_column")
+    for t in table:
+        for c in t.cells:
+            k = cluster_of(c)
+            if k is not None and k in order:
+                t.columns[order[k]] = c
+    return out

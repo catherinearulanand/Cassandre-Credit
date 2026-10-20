@@ -90,9 +90,10 @@ class VariableResolver(Protocol):
 
 @dataclass
 class EvalResult:
-    value: Decimal
+    value: Decimal  # rounded to the internal precision, for display and storage
     lineage: list[str] = field(default_factory=list)
     inputs: dict[str, Decimal] = field(default_factory=dict)
+    exact: Decimal | None = None  # unrounded; covenant compliance is decided on this
 
 
 @lru_cache(maxsize=4096)
@@ -194,12 +195,13 @@ class Evaluator:
             ctx.prec = 50
             ctx.rounding = ROUND_HALF_EVEN
             try:
-                value = self._eval(tree, 0).quantize(q, rounding=ROUND_HALF_EVEN)
+                exact = self._eval(tree, 0)
+                value = exact.quantize(q, rounding=ROUND_HALF_EVEN)
             except InvalidOperation as exc:
                 raise NotComputable("numeric overflow beyond supported precision") from exc
             except RecursionError as exc:
                 raise DslError("formula too deeply nested") from exc
-        return EvalResult(value, list(dict.fromkeys(self._lineage)), self._inputs)
+        return EvalResult(value, list(dict.fromkeys(self._lineage)), self._inputs, exact)
 
     # ---------------------------------------------------------------------------------
     def _eval(self, node: Tree[Token] | Token, offset: int) -> Decimal:

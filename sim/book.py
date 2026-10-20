@@ -99,8 +99,6 @@ def simulate_conduct(
     shock_q = rng.randint(5, N_Q - 1) if rng.random() < 0.04 else None
     for qi in range(N_Q):
         s = stress[qi]
-        if shock_q is not None and qi >= shock_q:
-            s = max(s, 0.85)
         util = float(np.clip(0.55 + 0.4 * s + nrng.normal(0, 0.06), 0.2, 1.05))
         od = int(max(0, nrng.poisson(0.5 + 18 * s**2)))
         chq = int(nrng.poisson(0.1 + 4.5 * s**2))

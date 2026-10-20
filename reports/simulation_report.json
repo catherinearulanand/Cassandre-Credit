@@ -1,113 +1,114 @@
 {
   "seed": 2026,
-  "obligors": 300,
+  "obligors": 600,
   "generated_at": "2026-10-19T00:00:00+00:00",
   "sanction_compilation": {
     "template_letters": {
-      "documents": 221,
+      "documents": 430,
       "fully_extracted_without_llm": {
         "value": 1.0,
-        "ci_low": 0.9829141938146678,
+        "ci_low": 0.991145155282481,
         "ci_high": 1.0,
-        "n": 221
+        "n": 430
       },
       "cts_exactly_equal_to_truth": {
         "value": 1.0,
-        "ci_low": 0.9829141938146678,
+        "ci_low": 0.991145155282481,
         "ci_high": 1.0,
-        "n": 221
+        "n": 430
       }
     },
     "negotiated_agreements": {
-      "documents": 79,
+      "documents": 170,
       "fully_extracted_by_grammar": {
         "value": 0.0,
         "ci_low": 0.0,
-        "ci_high": 0.04637283683559951,
-        "n": 79
+        "ci_high": 0.022098277972591136,
+        "n": 170
       },
       "needs_llm_or_human": {
         "value": 1.0,
-        "ci_low": 0.9536271631644004,
+        "ci_low": 0.9779017220274089,
         "ci_high": 1.0,
-        "n": 79
+        "n": 170
       }
     },
     "field_accuracy_on_extracted_template": {
       "value": 1.0,
-      "ci_low": 0.9995326430621244,
+      "ci_low": 0.9997594164511252,
       "ci_high": 1.0,
-      "n": 8216
+      "n": 15964
     },
     "citation_coverage": {
       "value": 1.0,
-      "ci_low": 0.9981791998034355,
+      "ci_low": 0.9990625308699097,
       "ci_high": 1.0,
-      "n": 2106
+      "n": 4094
     }
   },
   "cts_publication": {
-    "published": 300,
+    "published": 600,
     "blocked_by_validation": 0,
     "top_block_reasons": {},
-    "seconds": 0.512
+    "seconds": 0.841
   },
   "covenant_testing": {
-    "tests_run": 13540,
+    "tests_run": 27050,
     "value_matches_independent_calculation": {
       "value": 1.0,
-      "ci_low": 0.9997163581712296,
-      "ci_high": 1.0,
-      "n": 13540
+      "ci_low": 0.9998580016820974,
+      "ci_high": 0.9999999999999999,
+      "n": 27050
     },
     "result_matches_independent_calculation": {
       "value": 1.0,
-      "ci_low": 0.9997163581712296,
-      "ci_high": 1.0,
-      "n": 13540
+      "ci_low": 0.9998580016820974,
+      "ci_high": 0.9999999999999999,
+      "n": 27050
     },
     "lineage_coverage": {
       "value": 1.0,
-      "ci_low": 0.9997163581712296,
-      "ci_high": 1.0,
-      "n": 13540
+      "ci_low": 0.9998580016820974,
+      "ci_high": 0.9999999999999999,
+      "n": 27050
     },
-    "breaches_or_in_cure": 1076,
+    "breaches_or_in_cure": 2002,
+    "tests_with_non_positive_base": 0,
     "latency_ms": {
-      "p50": 0.17,
-      "p99": 0.688
+      "p50": 0.15,
+      "p99": 0.576
     }
   },
   "drawdown_gate": {
-    "decisions": 900,
+    "decisions": 1800,
     "gate_matches_covenant_policy": {
       "value": 1.0,
-      "ci_low": 0.9957496977346473,
-      "ci_high": 0.9999999999999999,
-      "n": 900
+      "ci_low": 0.9978703229817962,
+      "ci_high": 1.0,
+      "n": 1800
     },
     "latency_ms": {
-      "p50": 0.029,
-      "p99": 0.1705,
+      "p50": 0.1262,
+      "p99": 0.2822,
       "budget_p99": 300
     }
   },
   "sma_classification": {
-    "classifications": 4330,
+    "classifications": 8530,
     "match_independent_oracle": {
       "value": 1.0,
-      "ci_low": 0.9991135808932196,
-      "ci_high": 1.0,
-      "n": 4330
+      "ci_low": 0.9995498393126959,
+      "ci_high": 0.9999999999999999,
+      "n": 8530
     }
   },
   "drawing_power": {
-    "cases": 900,
+    "cases": 1800,
     "match_hand_oracle": {
       "value": 1.0,
-      "ci_low": 0.9957496977346473,
-      "ci_high": 0.9999999999999999,
-      "n": 900
+      "ci_low": 0.9978703229817962,
+      "ci_high": 1.0,
+      "n": 1800
     },
     "invariant_violations": 0
   },
@@ -134,251 +135,268 @@
     }
   },
   "models": {
-    "book_defaults": 125,
-    "book_defaults_from_unforeseeable_shocks": 16,
+    "book_defaults": 212,
+    "book_defaults_from_unforeseeable_shocks": 19,
     "ews": {
       "name": "EWS stress score (M4)",
       "target": "y_ews",
       "split": {
         "train_quarters": [
           4,
-          8
+          6
         ],
         "calibration_quarter": 9,
         "test_quarters": [
           10,
           11
         ],
-        "train_rows": 1295
+        "train_rows": 1044,
+        "obligor_disjoint": true,
+        "test_obligors": 194,
+        "embargo": "train label horizons end before the calibration quarter"
       },
       "metrics": {
-        "auc": 0.8343445745731621,
-        "pr_auc": 0.482438119335575,
-        "brier_calibrated": 0.09088521045631752,
-        "brier_uncalibrated": 0.08861843998321654,
-        "ece_calibrated": 0.054785736068910885,
-        "ece_uncalibrated": 0.06146320281229025,
-        "base_rate": 0.1325581395348837,
+        "auc_ci95_bootstrap": [
+          0.7342017217886783,
+          0.9179626511355501
+        ],
+        "precision_at_capacity_ci95": [
+          0.3932530203122613,
+          0.7183491403055682
+        ],
+        "recall_at_capacity_ci95": [
+          0.3156664723404835,
+          0.6143081317826119
+        ],
+        "auc": 0.837995337995338,
+        "pr_auc": 0.48636898474036505,
+        "brier_calibrated": 0.08021309062249292,
+        "brier_uncalibrated": 0.08129260934395165,
+        "ece_calibrated": 0.03249553316146435,
+        "ece_uncalibrated": 0.04770016977244971,
+        "base_rate": 0.12,
         "alert_capacity": 0.1,
-        "alerts": 43,
-        "precision_at_capacity": 0.5581395348837209,
-        "recall_at_capacity": 0.42105263157894735,
-        "lift_at_capacity": 4.210526315789474,
-        "test_rows": 430,
-        "test_positives": 57,
-        "defaulters_in_test_window": 40,
-        "flagged_at_least_one_quarter_before_sma2": 14,
-        "positives_from_unforeseeable_shocks": 11
+        "alerts": 32,
+        "precision_at_capacity": 0.5625,
+        "recall_at_capacity": 0.46153846153846156,
+        "lift_at_capacity": 4.6875,
+        "test_rows": 325,
+        "test_positives": 39,
+        "defaulters_in_test_window": 26,
+        "flagged_at_least_one_quarter_before_sma2": 9,
+        "positives_from_unforeseeable_shocks": 4
       },
       "baselines": {
-        "rules_only_indicator_count_auc": 0.7215794177131838,
-        "current_dpd_only_auc": 0.6086026057099854,
+        "rules_only_indicator_count_auc": 0.8031647839340147,
+        "current_dpd_only_auc": 0.6309395732472655,
+        "persistence_auc": 0.627039627039627,
         "random_auc": 0.5
       },
       "reasons_sample": [
         {
-          "obligor": "OBL-000206",
+          "obligor": "OBL-000529",
           "quarter": 10,
-          "score": 1.0,
-          "actual": 0,
-          "reasons": [
-            {
-              "feature": "util_avg",
-              "contribution": 1.322072758016326,
-              "human_text": "average limit utilisation is 82%"
-            },
-            {
-              "feature": "interest_delay_days",
-              "contribution": 1.2442165266580503,
-              "human_text": "interest serviced 21 days late"
-            },
-            {
-              "feature": "net_debt_ebitda",
-              "contribution": 1.0909502598747791,
-              "human_text": "net debt / EBITDA is 4.13x"
-            },
-            {
-              "feature": "dscr",
-              "contribution": 1.015360272059788,
-              "human_text": "debt service cover is 0.74x"
-            },
-            {
-              "feature": "pat_margin",
-              "contribution": 0.6479181335000483,
-              "human_text": "net margin is 0.7%"
-            }
-          ]
-        },
-        {
-          "obligor": "OBL-000117",
-          "quarter": 10,
-          "score": 1.0,
-          "actual": 0,
-          "reasons": [
-            {
-              "feature": "util_avg",
-              "contribution": 1.4470906289692866,
-              "human_text": "average limit utilisation is 90%"
-            },
-            {
-              "feature": "interest_delay_days",
-              "contribution": 1.2706455361059938,
-              "human_text": "interest serviced 27 days late"
-            },
-            {
-              "feature": "net_debt_ebitda",
-              "contribution": 1.1854480632747157,
-              "human_text": "net debt / EBITDA is 5.48x"
-            },
-            {
-              "feature": "dscr",
-              "contribution": 1.0110254031742931,
-              "human_text": "debt service cover is 0.56x"
-            },
-            {
-              "feature": "pat_margin",
-              "contribution": 0.6472012980560959,
-              "human_text": "net margin is -3.7%"
-            }
-          ]
-        },
-        {
-          "obligor": "OBL-000022",
-          "quarter": 11,
-          "score": 1.0,
+          "score": 0.7260619103499835,
           "actual": 1,
           "reasons": [
             {
-              "feature": "util_avg",
-              "contribution": 1.4149308761398207,
-              "human_text": "average limit utilisation is 90%"
-            },
-            {
-              "feature": "interest_delay_days",
-              "contribution": 1.274661644739901,
-              "human_text": "interest serviced 18 days late"
-            },
-            {
-              "feature": "overdrawn_days",
-              "contribution": 1.14597759099967,
-              "human_text": "13 overdrawn days this quarter"
+              "feature": "pat_margin",
+              "contribution": 1.2965582155605606,
+              "human_text": "net margin is -2.7%"
             },
             {
               "feature": "net_debt_ebitda",
-              "contribution": 1.121628212604637,
-              "human_text": "net debt / EBITDA is 7.40x"
+              "contribution": 1.2316446461210089,
+              "human_text": "net debt / EBITDA is 3.36x"
+            },
+            {
+              "feature": "receivable_days",
+              "contribution": 1.0973773171826513,
+              "human_text": "receivable days are 96"
+            },
+            {
+              "feature": "current_ratio",
+              "contribution": 0.7752990602671379,
+              "human_text": "current ratio is 0.64"
             },
             {
               "feature": "dscr",
-              "contribution": 0.8391635251193118,
-              "human_text": "debt service cover is 0.38x"
+              "contribution": 0.7177159023862818,
+              "human_text": "debt service cover is 1.10x"
             }
           ]
         },
         {
-          "obligor": "OBL-000014",
-          "quarter": 10,
-          "score": 1.0,
+          "obligor": "OBL-000515",
+          "quarter": 11,
+          "score": 0.6666837314118014,
           "actual": 0,
           "reasons": [
             {
-              "feature": "util_avg",
-              "contribution": 1.4010489519217524,
-              "human_text": "average limit utilisation is 85%"
-            },
-            {
-              "feature": "interest_delay_days",
-              "contribution": 1.248563191523737,
-              "human_text": "interest serviced 21 days late"
-            },
-            {
               "feature": "net_debt_ebitda",
-              "contribution": 1.105596573447301,
-              "human_text": "net debt / EBITDA is 8.02x"
+              "contribution": 1.235271783878706,
+              "human_text": "net debt / EBITDA is 3.33x"
+            },
+            {
+              "feature": "receivable_days",
+              "contribution": 1.1871688269766472,
+              "human_text": "receivable days are 105"
             },
             {
               "feature": "dscr",
-              "contribution": 0.9785056865142636,
-              "human_text": "debt service cover is 0.42x"
+              "contribution": 1.1592807607493563,
+              "human_text": "debt service cover is 1.00x"
             },
             {
               "feature": "pat_margin",
-              "contribution": 0.6454078666225503,
-              "human_text": "net margin is -1.6%"
+              "contribution": 1.1476186491574634,
+              "human_text": "net margin is -1.5%"
+            },
+            {
+              "feature": "util_avg",
+              "contribution": 0.6809353176516121,
+              "human_text": "average limit utilisation is 66%"
             }
           ]
         },
         {
-          "obligor": "OBL-000130",
-          "quarter": 10,
-          "score": 1.0,
-          "actual": 0,
+          "obligor": "OBL-000281",
+          "quarter": 11,
+          "score": 0.6580985106324507,
+          "actual": 1,
           "reasons": [
             {
-              "feature": "interest_delay_days",
-              "contribution": 1.207049436905879,
-              "human_text": "interest serviced 15 days late"
+              "feature": "dscr",
+              "contribution": 1.1325454455499768,
+              "human_text": "debt service cover is 0.91x"
             },
             {
-              "feature": "util_avg",
-              "contribution": 1.2023713979002593,
-              "human_text": "average limit utilisation is 83%"
+              "feature": "pat_margin",
+              "contribution": 1.1248708662812559,
+              "human_text": "net margin is -2.2%"
+            },
+            {
+              "feature": "receivable_days",
+              "contribution": 1.0979069227259162,
+              "human_text": "receivable days are 112"
             },
             {
               "feature": "net_debt_ebitda",
-              "contribution": 1.1301306115090455,
-              "human_text": "net debt / EBITDA is 5.71x"
+              "contribution": 0.7363654285184059,
+              "human_text": "net debt / EBITDA is 3.63x"
             },
             {
-              "feature": "overdrawn_days",
-              "contribution": 0.8713764248515425,
-              "human_text": "14 overdrawn days this quarter"
-            },
+              "feature": "current_ratio",
+              "contribution": 0.5088525357365066,
+              "human_text": "current ratio is 0.72"
+            }
+          ]
+        },
+        {
+          "obligor": "OBL-000573",
+          "quarter": 10,
+          "score": 0.6307278334667257,
+          "actual": 0,
+          "reasons": [
             {
               "feature": "dscr",
-              "contribution": 0.7455109713901548,
-              "human_text": "debt service cover is 0.59x"
+              "contribution": 1.4260387523833338,
+              "human_text": "debt service cover is 1.01x"
+            },
+            {
+              "feature": "net_debt_ebitda",
+              "contribution": 1.0265049807647282,
+              "human_text": "net debt / EBITDA is 2.98x"
+            },
+            {
+              "feature": "pat_margin",
+              "contribution": 0.9199270440377108,
+              "human_text": "net margin is 1.7%"
+            },
+            {
+              "feature": "current_ratio",
+              "contribution": 0.4743694384767766,
+              "human_text": "current ratio is 0.72"
+            },
+            {
+              "feature": "util_avg",
+              "contribution": 0.4615137778310189,
+              "human_text": "average limit utilisation is 65%"
+            }
+          ]
+        },
+        {
+          "obligor": "OBL-000040",
+          "quarter": 10,
+          "score": 0.6220737073492546,
+          "actual": 0,
+          "reasons": [
+            {
+              "feature": "dscr",
+              "contribution": 1.2533419162267496,
+              "human_text": "debt service cover is 0.94x"
+            },
+            {
+              "feature": "net_debt_ebitda",
+              "contribution": 1.000377312865582,
+              "human_text": "net debt / EBITDA is 3.16x"
+            },
+            {
+              "feature": "current_ratio",
+              "contribution": 0.6858930683228032,
+              "human_text": "current ratio is 0.60"
+            },
+            {
+              "feature": "pat_margin",
+              "contribution": 0.6268764252677792,
+              "human_text": "net margin is 3.3%"
+            },
+            {
+              "feature": "util_avg",
+              "contribution": 0.576054124857477,
+              "human_text": "average limit utilisation is 67%"
             }
           ]
         }
       ],
       "importance": [
         [
-          "dscr",
-          0.6152473624798782
+          "min_headroom_pct",
+          0.6409227602454658
         ],
         [
           "pat_margin",
-          0.4695704694264133
+          0.5060693324493744
         ],
         [
-          "iscr_delta",
-          0.43087389357944644
-        ],
-        [
-          "interest_delay_days",
-          0.37696541401989025
-        ],
-        [
-          "current_ratio",
-          0.33693238550142246
-        ],
-        [
-          "net_debt_ebitda",
-          0.27704360293870606
-        ],
-        [
-          "dscr_delta",
-          0.26737747011939844
+          "receivable_days",
+          0.4093811247819531
         ],
         [
           "util_avg",
-          0.2634974382557638
+          0.37038450010998875
+        ],
+        [
+          "dscr",
+          0.342879629537301
+        ],
+        [
+          "net_debt_ebitda",
+          0.31903815617202086
+        ],
+        [
+          "iscr_delta",
+          0.24489757724226346
+        ],
+        [
+          "dscr_delta",
+          0.2406008131597591
         ]
       ],
       "monitoring": {
-        "psi_score_train_vs_test": 0.24351017634354177,
-        "max_feature_psi": 2.0970158102053107
+        "psi_score_train_vs_test": 1.0297094277901346,
+        "max_feature_psi": 3.168391523947027,
+        "psi_action": "investigate"
       }
     },
     "breach_forecast": {
@@ -387,199 +405,219 @@
       "split": {
         "train_quarters": [
           4,
-          9
+          8
         ],
         "calibration_quarter": 10,
         "test_quarters": [
           11,
           12
         ],
-        "train_rows": 1530
+        "train_rows": 1698,
+        "obligor_disjoint": true,
+        "test_obligors": 194,
+        "embargo": "train label horizons end before the calibration quarter"
       },
       "metrics": {
-        "auc": 0.98989898989899,
-        "pr_auc": 0.9562371241111358,
-        "brier_calibrated": 0.02218236657798651,
-        "brier_uncalibrated": 0.024433723274830198,
-        "ece_calibrated": 0.021391708345321864,
-        "ece_uncalibrated": 0.032001612659848994,
-        "base_rate": 0.1330049261083744,
+        "auc_ci95_bootstrap": [
+          0.9908984549932826,
+          1.0
+        ],
+        "precision_at_capacity_ci95": [
+          0.889740999265246,
+          0.9999999999999999
+        ],
+        "recall_at_capacity_ci95": [
+          0.29212697667380405,
+          0.5026621147971477
+        ],
+        "auc": 0.9968772653766799,
+        "pr_auc": 0.9881701627820354,
+        "brier_calibrated": 0.012111079166484285,
+        "brier_uncalibrated": 0.016005626434577033,
+        "ece_calibrated": 0.01707267121359872,
+        "ece_uncalibrated": 0.014045014750091657,
+        "base_rate": 0.2581699346405229,
         "alert_capacity": 0.1,
-        "alerts": 41,
+        "alerts": 31,
         "precision_at_capacity": 1.0,
-        "recall_at_capacity": 0.7592592592592593,
-        "lift_at_capacity": 7.518518518518518,
-        "test_rows": 406,
-        "test_positives": 54
+        "recall_at_capacity": 0.3924050632911392,
+        "lift_at_capacity": 3.873417721518987,
+        "test_rows": 306,
+        "test_positives": 79,
+        "rows_not_already_in_breach": 232,
+        "new_breach_positives": 7,
+        "auc_on_new_breaches_only": 1.0,
+        "headroom_only_auc_on_new_breaches": 1.0
       },
       "baselines": {
-        "rules_only_indicator_count_auc": 0.9030145202020202,
-        "current_dpd_only_auc": 0.6226325757575758,
+        "rules_only_indicator_count_auc": 0.9585958846818714,
+        "current_dpd_only_auc": 0.6268332125132439,
+        "persistence_auc": 0.9540233089834383,
         "random_auc": 0.5
       },
       "reasons_sample": [
         {
-          "obligor": "OBL-000195",
+          "obligor": "OBL-000515",
           "quarter": 12,
-          "score": 1.0,
+          "score": 0.9995748858204905,
           "actual": 1,
           "reasons": [
             {
-              "feature": "open_breaches",
-              "contribution": 2.765321301293903,
-              "human_text": "1 covenant(s) in breach"
+              "feature": "min_headroom_pct",
+              "contribution": 4.511336164281702,
+              "human_text": "tightest covenant headroom is -162.3%"
             },
             {
               "feature": "headroom_delta",
-              "contribution": 2.0940711823724727,
-              "human_text": "headroom moved -30.5 pts vs last quarter"
+              "contribution": 2.4210083713761392,
+              "human_text": "headroom moved -54.2 pts vs last quarter"
             },
             {
-              "feature": "min_headroom_pct",
-              "contribution": 2.02805482765351,
-              "human_text": "tightest covenant headroom is -65.6%"
+              "feature": "dscr_delta",
+              "contribution": 1.0020273534618616,
+              "human_text": "DSCR moved -0.22x vs last quarter"
             },
             {
-              "feature": "pat_margin",
-              "contribution": 0.9641514568843652,
-              "human_text": "net margin is -3.3%"
+              "feature": "iscr_delta",
+              "contribution": 0.9472457055236404,
+              "human_text": "interest cover moved -0.39x vs last quarter"
             },
             {
-              "feature": "receivable_days",
-              "contribution": 0.71160159804508,
-              "human_text": "receivable days are 111"
+              "feature": "iscr",
+              "contribution": 0.4574582621397818,
+              "human_text": "interest cover is 1.67x"
             }
           ]
         },
         {
-          "obligor": "OBL-000091",
-          "quarter": 11,
-          "score": 1.0,
+          "obligor": "OBL-000193",
+          "quarter": 12,
+          "score": 0.9995061607233179,
           "actual": 1,
           "reasons": [
             {
-              "feature": "open_breaches",
-              "contribution": 2.439802772150763,
-              "human_text": "1 covenant(s) in breach"
+              "feature": "min_headroom_pct",
+              "contribution": 4.602595108303909,
+              "human_text": "tightest covenant headroom is -80.7%"
             },
             {
               "feature": "headroom_delta",
-              "contribution": 2.0687900817475344,
-              "human_text": "headroom moved -70.6 pts vs last quarter"
-            },
-            {
-              "feature": "min_headroom_pct",
-              "contribution": 1.8150331379429923,
-              "human_text": "tightest covenant headroom is -144.5%"
-            },
-            {
-              "feature": "pat_margin",
-              "contribution": 0.9561077461395576,
-              "human_text": "net margin is -7.1%"
+              "contribution": 2.464991282966526,
+              "human_text": "headroom moved -33.0 pts vs last quarter"
             },
             {
               "feature": "dscr_delta",
-              "contribution": 0.6821136762751357,
-              "human_text": "DSCR moved -0.21x vs last quarter"
+              "contribution": 1.0328503658306278,
+              "human_text": "DSCR moved -0.20x vs last quarter"
+            },
+            {
+              "feature": "iscr_delta",
+              "contribution": 0.966525900384755,
+              "human_text": "interest cover moved -0.44x vs last quarter"
+            },
+            {
+              "feature": "iscr",
+              "contribution": 0.4569573187032118,
+              "human_text": "interest cover is 1.90x"
+            }
+          ]
+        },
+        {
+          "obligor": "OBL-000232",
+          "quarter": 12,
+          "score": 0.9994439166100553,
+          "actual": 1,
+          "reasons": [
+            {
+              "feature": "min_headroom_pct",
+              "contribution": 4.359609521907972,
+              "human_text": "tightest covenant headroom is -76.5%"
+            },
+            {
+              "feature": "headroom_delta",
+              "contribution": 2.4529162901984023,
+              "human_text": "headroom moved -29.0 pts vs last quarter"
+            },
+            {
+              "feature": "dscr_delta",
+              "contribution": 1.0311472105570105,
+              "human_text": "DSCR moved -0.18x vs last quarter"
+            },
+            {
+              "feature": "iscr_delta",
+              "contribution": 0.9426659457478475,
+              "human_text": "interest cover moved -0.43x vs last quarter"
+            },
+            {
+              "feature": "iscr",
+              "contribution": 0.4562162669294354,
+              "human_text": "interest cover is 2.07x"
             }
           ]
         },
         {
           "obligor": "OBL-000095",
-          "quarter": 12,
-          "score": 1.0,
+          "quarter": 11,
+          "score": 0.9994267238496758,
           "actual": 1,
           "reasons": [
             {
-              "feature": "open_breaches",
-              "contribution": 2.587545796483417,
-              "human_text": "1 covenant(s) in breach"
+              "feature": "min_headroom_pct",
+              "contribution": 4.555650935794397,
+              "human_text": "tightest covenant headroom is -39.0%"
             },
             {
               "feature": "headroom_delta",
-              "contribution": 2.1312163488692377,
-              "human_text": "headroom moved -31.6 pts vs last quarter"
+              "contribution": 2.5868618457261086,
+              "human_text": "headroom moved -23.4 pts vs last quarter"
             },
             {
-              "feature": "min_headroom_pct",
-              "contribution": 1.9516739528218845,
-              "human_text": "tightest covenant headroom is -70.6%"
+              "feature": "dscr_delta",
+              "contribution": 1.05334790284575,
+              "human_text": "DSCR moved -0.18x vs last quarter"
+            },
+            {
+              "feature": "iscr_delta",
+              "contribution": 0.9366445239129897,
+              "human_text": "interest cover moved -0.51x vs last quarter"
             },
             {
               "feature": "pat_margin",
-              "contribution": 0.9947400946464761,
-              "human_text": "net margin is -3.4%"
-            },
-            {
-              "feature": "receivable_days",
-              "contribution": 0.6613963726569275,
-              "human_text": "receivable days are 104"
+              "contribution": 0.3667362710420779,
+              "human_text": "net margin is -1.4%"
             }
           ]
         },
         {
-          "obligor": "OBL-000098",
+          "obligor": "OBL-000077",
           "quarter": 12,
-          "score": 1.0,
+          "score": 0.999386166156846,
           "actual": 1,
           "reasons": [
             {
-              "feature": "open_breaches",
-              "contribution": 2.400793193718606,
-              "human_text": "2 covenant(s) in breach"
+              "feature": "min_headroom_pct",
+              "contribution": 4.501992536866845,
+              "human_text": "tightest covenant headroom is 1.5%"
             },
             {
               "feature": "headroom_delta",
-              "contribution": 1.8599337986225672,
-              "human_text": "headroom moved -49.9 pts vs last quarter"
+              "contribution": 2.600755627511971,
+              "human_text": "headroom moved -18.9 pts vs last quarter"
             },
             {
-              "feature": "min_headroom_pct",
-              "contribution": 1.5198521885991425,
-              "human_text": "tightest covenant headroom is -83.6%"
+              "feature": "dscr_delta",
+              "contribution": 1.0999547704821568,
+              "human_text": "DSCR moved -0.22x vs last quarter"
             },
             {
-              "feature": "current_ratio",
-              "contribution": 0.8990888877783422,
-              "human_text": "current ratio is 0.59"
-            },
-            {
-              "feature": "pat_margin",
-              "contribution": 0.8949551121311867,
-              "human_text": "net margin is -8.2%"
-            }
-          ]
-        },
-        {
-          "obligor": "OBL-000204",
-          "quarter": 12,
-          "score": 1.0,
-          "actual": 1,
-          "reasons": [
-            {
-              "feature": "open_breaches",
-              "contribution": 2.708858966662933,
-              "human_text": "1 covenant(s) in breach"
-            },
-            {
-              "feature": "headroom_delta",
-              "contribution": 2.34589904895459,
-              "human_text": "headroom moved -13.5 pts vs last quarter"
-            },
-            {
-              "feature": "min_headroom_pct",
-              "contribution": 2.046898461135169,
-              "human_text": "tightest covenant headroom is -33.3%"
+              "feature": "iscr_delta",
+              "contribution": 1.0319480769062532,
+              "human_text": "interest cover moved -0.57x vs last quarter"
             },
             {
               "feature": "pat_margin",
-              "contribution": 0.8134495843483028,
-              "human_text": "net margin is -2.2%"
-            },
-            {
-              "feature": "receivable_days",
-              "contribution": 0.763951612541918,
-              "human_text": "receivable days are 104"
+              "contribution": 0.29872951306390316,
+              "human_text": "net margin is -0.4%"
             }
           ]
         }
@@ -587,42 +625,43 @@
       "importance": [
         [
           "min_headroom_pct",
-          0.6046642920230989
+          1.3901806865772492
         ],
         [
           "headroom_delta",
-          0.5860290409833684
-        ],
-        [
-          "receivable_days",
-          0.48285303033284166
-        ],
-        [
-          "open_breaches",
-          0.4117912789496265
-        ],
-        [
-          "net_debt_ebitda",
-          0.3875010059714079
-        ],
-        [
-          "pat_margin",
-          0.3746080317430277
+          0.7029800843434536
         ],
         [
           "dscr_delta",
-          0.3702748523846084
+          0.40052298625951677
         ],
         [
-          "current_ratio",
-          0.19778290475223553
+          "iscr_delta",
+          0.3834908522223175
+        ],
+        [
+          "util_trend",
+          0.2781030852987351
+        ],
+        [
+          "receivable_days",
+          0.26320392911371654
+        ],
+        [
+          "iscr",
+          0.23443744714208042
+        ],
+        [
+          "util_avg",
+          0.2316780421081692
         ]
       ],
       "monitoring": {
-        "psi_score_train_vs_test": 0.27571471293918065,
-        "max_feature_psi": 2.157229830882414
+        "psi_score_train_vs_test": 0.38812508294146586,
+        "max_feature_psi": 2.530611585899246,
+        "psi_action": "investigate"
       }
     }
   },
-  "wall_seconds": 13.3
+  "wall_seconds": 14.4
 }

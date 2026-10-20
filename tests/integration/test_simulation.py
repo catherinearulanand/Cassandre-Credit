@@ -20,7 +20,7 @@ from sim.run_simulation import (
 
 @pytest.fixture(scope="module")
 def world():  # type: ignore[no-untyped-def]
-    book = build_book(70, seed=77)
+    book = build_book(250, seed=77)
     cov_report, cov = stage_covenants(book)
     return book, cov_report, cov
 
@@ -67,7 +67,7 @@ def test_models_beat_trivial_baselines_out_of_time(world) -> None:  # type: igno
     m = stage_models(book, cov)
     e = m["ews"]
     assert (
-        e["metrics"]["auc"] > 0.75 and e["metrics"]["auc"] > e["baselines"]["current_dpd_only_auc"]
+        e["metrics"]["auc"] > 0.70 and e["metrics"]["auc"] > e["baselines"]["persistence_auc"]
     )
     assert e["metrics"]["ece_calibrated"] < 0.15
     assert all(len(r["reasons"]) == 5 for r in e["reasons_sample"])

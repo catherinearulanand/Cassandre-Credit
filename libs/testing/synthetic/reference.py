@@ -24,8 +24,14 @@ def _ttm(h: FinancialHistory, qi: int, fn) -> Decimal | None:  # type: ignore[no
     return sum((fn(q) for q in range(qi - 3, qi + 1)), Decimal(0))
 
 
-def reference_ratio(key: str, h: FinancialHistory, qi: int) -> Decimal | None:
-    """Returns the ratio rounded half-even to 4 dp, or None if not computable / insufficient data."""
+def reference_ratio(
+    key: str, h: FinancialHistory, qi: int, *, exact: bool = False
+) -> Decimal | None:
+    """The ratio (rounded half-even to 4 dp, or unrounded with ``exact``).
+
+    None when it cannot be meaningfully computed: insufficient history, or a zero or NEGATIVE
+    denominator. Policy encoded here independently of the engine: a ratio over a non-positive
+    base is never a pass."""
     with localcontext() as ctx:
         ctx.prec = 50
 
@@ -86,6 +92,7 @@ def reference_ratio(key: str, h: FinancialHistory, qi: int) -> Decimal | None:
             den = _v(h, qi, "share_capital") + _v(h, qi, "other_equity")
         else:
             raise KeyError(key)
-        if num is None or den is None or den == 0:
+        if num is None or den is None or den <= 0:
             return None
-        return (num / den).quantize(Decimal("0.0001"), rounding=ROUND_HALF_EVEN)
+        q = num / den
+        return q if exact else q.quantize(Decimal("0.0001"), rounding=ROUND_HALF_EVEN)

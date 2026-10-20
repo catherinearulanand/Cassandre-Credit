@@ -42,7 +42,7 @@ def validate_draft(
     *,
     tier1_capital_rupees: Decimal,
     rating: str,
-    existing_group_exposure_rupees: Decimal = Decimal(0),
+    existing_group_exposure_rupees: Decimal | None = None,
 ) -> list[str]:
     problems: list[str] = []
     for f in cts.facilities:
@@ -74,7 +74,9 @@ def validate_draft(
     )
     if not le.result:
         problems.append(f"large exposures: {le.explanation}")
-    if cts.group_id:
+    if cts.group_id and existing_group_exposure_rupees is None:
+        problems.append("group exposure unknown: the Large Exposures group check cannot run")
+    elif cts.group_id and existing_group_exposure_rupees is not None:
         lg = rules.evaluate(
             "rbi.large_exposures",
             {
@@ -145,7 +147,11 @@ class CtsService:
         *,
         tier1_capital_rupees: Decimal,
         emit: Callable[[str, CreditTermSheet, dict[str, Any]], None] | None = None,
+        group_exposure: Callable[[str], Decimal | None] | None = None,
     ) -> None:
+        # group_exposure(group_id) -> existing group exposure in rupees from the limit service, or
+        # None if unknown. Unknown exposure blocks publication: the check fails closed.
+        self._group_exposure = group_exposure or (lambda gid: None)
         self.clock = clock
         self.rules = rules
         self.signer = signer
@@ -190,6 +196,8 @@ class CtsService:
         rating: str,
     ) -> tuple[PublishedCts, list[dict[str, Any]]]:
         cur = self.get(cts_id)
+        if new.cts_id != cts_id or new.obligor_id != cur.cts.obligor_id:
+            raise ConflictError("an amendment must keep the same CTS id and obligor")
         if new.version != cur.cts.version + 1 or new.supersedes_version != cur.cts.version:
             raise ConflictError("amendment must be exactly the next version")
         if not new.amendment_sanction_ref:
@@ -221,7 +229,14 @@ class CtsService:
         rating: str,
         on_behalf_of: str | None = None,
     ) -> PublishedCts:
-        problems = validate_draft(cts, self.rules, tier1_capital_rupees=self.tier1, rating=rating)
+        group = self._group_exposure(cts.group_id) if cts.group_id else None
+        problems = validate_draft(
+            cts,
+            self.rules,
+            tier1_capital_rupees=self.tier1,
+            rating=rating,
+            existing_group_exposure_rupees=group,
+        )
         if problems:
             raise ValidationFailure(
                 "CTS failed validation: " + " | ".join(problems), problems=problems

@@ -101,15 +101,31 @@ def test_engine_matches_independent_reference_on_every_covenant(world) -> None: 
 def test_missing_history_is_not_tested(world) -> None:  # type: ignore[no-untyped-def]
     _, _, pkg, spreads = world
     dscr = next(c for c in pkg.cts.covenants if c.name == "DSCR")
+    # a test period after the first test date, but one needed input line is absent
+    cut = [
+        s.model_copy(update={"lines": {k: v for k, v in s.lines.items() if k != "pat"}})
+        if i == 5
+        else s
+        for i, s in enumerate(spreads)
+    ]
     rec = evaluate_covenant(
+        dscr,
+        pkg.cts,
+        cut,
+        cut[6].period_end,
+        tested_at=datetime(2026, 10, 19, tzinfo=UTC),
+        test_id="TST-2",
+    )
+    assert rec.result is TestResult.NOT_TESTED_MISSING_DATA
+    early = evaluate_covenant(
         dscr,
         pkg.cts,
         spreads[:3],
         spreads[2].period_end,
         tested_at=datetime(2026, 10, 19, tzinfo=UTC),
-        test_id="TST-2",
+        test_id="TST-3",
     )
-    assert rec.result is TestResult.NOT_TESTED_MISSING_DATA
+    assert early.result is TestResult.DEFERRED, "before the first test date nothing is tested"
 
 
 def test_gap_in_series_refuses(world) -> None:  # type: ignore[no-untyped-def]
@@ -177,6 +193,11 @@ def test_breach_waiver_cure_and_equity(world) -> None:  # type: ignore[no-untype
     ctx = TestContext(equity_cures=[EquityCure(tight.covenant_id, pe, Decimal(10) ** 12, "APR-1")])
     r = evaluate_covenant(tight, cts, spreads, pe, tested_at=now, test_id="T", ctx=ctx)
     assert r.result is TestResult.COMPLIED and any("equity cure" in n for n in r.notes)
+    # evaluation is pure: the caller records the consumed cure, then the next test sees it used
+    assert r.equity_cure_applied == "APR-1"
+    again = evaluate_covenant(tight, cts, spreads, pe, tested_at=now, test_id="T", ctx=ctx)
+    assert again.result is TestResult.COMPLIED, "same inputs, same answer"
+    ctx.equity_cures_used[tight.covenant_id] = 1
     r2 = evaluate_covenant(tight, cts, spreads, pe, tested_at=now, test_id="T", ctx=ctx)
     assert r2.result is TestResult.BREACHED  # only one cure allowed
 
@@ -390,9 +411,7 @@ def test_publish_maker_checker_and_immutability(cts_env) -> None:  # type: ignor
             reason="ok",
             rating=ob.obligor.internal_rating,
         )
-    agent = Principal(
-        id="agent:sc", kind="agent", roles=frozenset({Role.AGENT}), on_behalf_of="cad0"
-    )
+    agent = Principal.for_agent("agent:sc", _human("cad0", Role.CAD_MAKER))
     with pytest.raises(AuthorizationError):
         svc.publish(
             pkg.cts,
@@ -404,6 +423,7 @@ def test_publish_maker_checker_and_immutability(cts_env) -> None:  # type: ignor
     pub = svc.publish(
         pkg.cts,
         drafted_by="agent:sc",
+        drafted_on_behalf_of="cad-maker-9",
         checker=checker,
         reason="verified vs sanction",
         rating=ob.obligor.internal_rating,
@@ -413,6 +433,7 @@ def test_publish_maker_checker_and_immutability(cts_env) -> None:  # type: ignor
         svc.publish(
             pkg.cts,
             drafted_by="agent:sc",
+            drafted_on_behalf_of="cad-maker-9",
             checker=checker,
             reason="again",
             rating=ob.obligor.internal_rating,
@@ -435,6 +456,7 @@ def test_delegated_power_violation_blocks(cts_env) -> None:  # type: ignore[no-u
         svc.publish(
             weak,
             drafted_by="agent:sc",
+            drafted_on_behalf_of="cad-maker-9",
             checker=_human("c", Role.CAD_CHECKER),
             reason="r",
             rating=ob.obligor.internal_rating,
@@ -449,6 +471,7 @@ def test_policy_violation_blocks(cts_env) -> None:  # type: ignore[no-untyped-de
         svc.publish(
             bad,
             drafted_by="agent:sc",
+            drafted_on_behalf_of="cad-maker-9",
             checker=_human("c", Role.CAD_CHECKER),
             reason="r",
             rating=ob.obligor.internal_rating,
@@ -461,6 +484,7 @@ def test_amendment_versions_and_diff(cts_env) -> None:  # type: ignore[no-untype
     svc.publish(
         pkg.cts,
         drafted_by="agent:sc",
+        drafted_on_behalf_of="cad-maker-9",
         checker=checker,
         reason="r",
         rating=ob.obligor.internal_rating,
@@ -480,6 +504,7 @@ def test_amendment_versions_and_diff(cts_env) -> None:  # type: ignore[no-untype
         pkg.cts.cts_id,
         v2,
         drafted_by="agent:sc",
+        drafted_on_behalf_of="cad-maker-9",
         checker=checker,
         reason="waiver reset",
         rating=ob.obligor.internal_rating,
@@ -492,6 +517,7 @@ def test_amendment_versions_and_diff(cts_env) -> None:  # type: ignore[no-untype
             pkg.cts.cts_id,
             v2.model_copy(update={"version": 3, "supersedes_version": 2}),
             drafted_by="a",
+            drafted_on_behalf_of="cad-maker-9",
             checker=checker,
             reason="r",
             rating=ob.obligor.internal_rating,

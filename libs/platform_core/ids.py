@@ -48,7 +48,7 @@ def new_event_id() -> str:
 
 
 def parse_id(value: str) -> tuple[str, str]:
-    m = _ID_RE.match(value)
+    m = _ID_RE.fullmatch(value)
     if not m:
         raise ValueError(f"malformed id {value!r}")
     return m.group("prefix"), m.group("ulid")

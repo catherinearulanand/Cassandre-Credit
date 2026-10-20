@@ -33,6 +33,7 @@ from ocr.pipeline.route import Calibrator, ece, features, hard_blocked, route
 from ocr.pipeline.validate import IdentityResult, validate_statement
 from ocr.synthetic.render import LEVELS, RenderedPage, render_statement
 
+N_OBLIGORS = 40
 ROOT = Path(__file__).resolve().parents[2]
 CACHE = ROOT / "reports" / "_cache"
 REPORT = ROOT / "reports" / "ocr_accuracy.json"
@@ -51,6 +52,8 @@ class Doc:
     ext: StatementExtraction | None = None
     results: list[IdentityResult] = field(default_factory=list)
     split: str = "test"
+    obligor_idx: int = 0
+    layout: str = ""
     tamper: str | None = None  # None | inconsistent | consistent
     tampered_codes: list[str] = field(default_factory=list)
     ocr_seconds: float = 0.0
@@ -73,23 +76,33 @@ def _ocr_cached(engine: OcrEngine, doc: Doc) -> list[Word]:
 def build_corpus(seed: int, per_level: int) -> list[Doc]:
     rng = random.Random(seed)
     pool = []
-    for i in range(14):
+    for i in range(N_OBLIGORS):
         ob = make_obligor(rng, i)
         pool.append(generate_history(rng, ob.obligor.obligor_id, ob.trajectory, ob.shock_quarter))
     docs: list[Doc] = []
     for level in LEVELS:
         for k in range(per_level):
-            h = rng.choice(pool)
+            oi = rng.randrange(len(pool))
+            h = pool[oi]
             qi = rng.randint(4, len(h.quarters) - 1)
             stmt = "PL" if k % 2 == 0 else "BS"
             q, prior = h.quarters[qi], h.quarters[qi - 1]
             page = render_statement(rng, q, prior, stmt, level)
-            docs.append(Doc(f"{level}-{k:03d}", level, stmt, page, q))
-    seen: dict[tuple[str, str], int] = {}
-    for d in docs:  # alternate within each (level, statement) cell so both splits see every kind
-        n = seen.get((d.level, d.statement), 0)
-        seen[(d.level, d.statement)] = n + 1
-        d.split = "calibration" if n % 2 == 0 else "test"
+            docs.append(
+                Doc(
+                    f"{level}-{k:03d}",
+                    level,
+                    stmt,
+                    page,
+                    q,
+                    obligor_idx=oi,
+                    layout=str(page.meta.get("layout", "")),
+                )
+            )
+    # Split by OBLIGOR: no company (and so no quarter's exact figures) is in both halves, which
+    # removes the leakage of the earlier page-level split. Even-numbered obligors calibrate.
+    for d in docs:
+        d.split = "calibration" if d.obligor_idx % 2 == 0 else "test"
     return docs
 
 
@@ -277,6 +290,39 @@ def evaluate(
         },
     }
 
+    def cluster_ci(rs: list[FieldRec], fn: Any, reps: int = 1000) -> list[float]:
+        """95% interval resampling whole PAGES (fields on one page share scan quality, so they are
+        not independent draws; field-level Wilson intervals understate the uncertainty)."""
+        by_doc: dict[str, list[FieldRec]] = {}
+        for r in rs:
+            by_doc.setdefault(r.doc.doc_id, []).append(r)
+        docs_ = list(by_doc.values())
+        if len(docs_) < 2:
+            return [float("nan"), float("nan")]
+        rng_ = np.random.default_rng(seed)
+        vals = []
+        for _ in range(reps):
+            pick = rng_.integers(0, len(docs_), len(docs_))
+            sample = [r for i in pick for r in docs_[i]]
+            v = fn(sample)
+            if v == v:
+                vals.append(v)
+        return (
+            [float(np.quantile(vals, 0.025)), float(np.quantile(vals, 0.975))]
+            if vals
+            else [float("nan")] * 2
+        )
+
+    def f_acc(rs: list[FieldRec]) -> float:
+        return sum(r.correct_after for r in rs) / len(rs)
+
+    def f_stp(rs: list[FieldRec]) -> float:
+        return sum(r.found and r.routed == "auto" for r in rs) / len(rs)
+
+    def f_prec(rs: list[FieldRec]) -> float:
+        a = [r for r in rs if r.found and r.routed == "auto"]
+        return sum(r.correct_after for r in a) / len(a) if a else float("nan")
+
     def block(rs: list[FieldRec]) -> dict[str, Any]:
         n = len(rs)
         found = [r for r in rs if r.found]
@@ -299,6 +345,15 @@ def evaluate(
                 n,
             ),
             "mean_cer_amount": float(np.mean([r.cer_val for r in rs])) if rs else float("nan"),
+            "pages": len({r.doc.doc_id for r in rs}),
+            # page-level view: of pages with any straight-through figure, how many had none wrong.
+            # Fields on a page are correlated, so this is the conservative reading of precision.
+            "stp_page_clean": _stp_page_clean(rs),
+            "page_clustered_ci95": {
+                "accuracy_after_validation": cluster_ci(rs, f_acc) if rs else [],
+                "stp_rate": cluster_ci(rs, f_stp) if rs else [],
+                "stp_precision": cluster_ci(rs, f_prec) if rs else [],
+            },
         }
         return res
 
@@ -311,15 +366,23 @@ def evaluate(
     # ---- calibration quality, and the value of arithmetic validation (ablation) -----------
     ece_raw = ece(raw_conf, yt)
     ece_cal = ece(pt, yt)
-    base_auto = raw_conf >= 0.90
+    base_t = _conf_only_threshold(xc[:, 0], yc, target_precision)  # tuned on the CALIBRATION half
+    base_auto = raw_conf >= base_t
     out["calibration"] = {"ece_raw_ocr_confidence": ece_raw, "ece_calibrated": ece_cal}
     out["ablation_confidence_only_routing"] = {
-        "rule": "auto-accept when raw OCR confidence >= 0.90, no arithmetic validation",
+        "rule": (
+            f"auto-accept when raw OCR confidence >= {base_t:.3f}, the lowest threshold meeting the "
+            f"same {target_precision:.1%} precision target on the calibration half; no arithmetic checks"
+        ),
+        "threshold": float(base_t),
         "stp_rate": _stats(int(base_auto.sum()), len(yt)),
         "stp_precision": _stats(int(((yt == 1) & base_auto).sum()), int(base_auto.sum())),
-        "delivered_accuracy_assuming_perfect_review": _stats(
-            len(yt) - int(((yt == 0) & base_auto).sum()), len(yt)
-        ),
+        "wrong_values_accepted": int(((yt == 0) & base_auto).sum()),
+    }
+    out["by_layout"] = {
+        lay: block([r for r in test_recs if r.doc.layout == lay])
+        for lay in ("A", "B")
+        if any(r.doc.layout == lay for r in test_recs)
     }
 
     # ---- document level -------------------------------------------------------------------
@@ -356,8 +419,10 @@ def evaluate(
         "unit_detected_correctly": _stats(unit_ok, len(td)),
         "all_fields_correct": _stats(full_ok, len(td)),
         "fully_straight_through_and_correct": _stats(stp_docs, len(td)),
-        "mean_ocr_seconds_per_page": float(
-            np.mean([d.ocr_seconds for d in docs if d.ocr_seconds]) or 0.0
+        "mean_ocr_seconds_per_page": (
+            float(np.mean([d.ocr_seconds for d in docs if d.ocr_seconds]))
+            if any(d.ocr_seconds for d in docs)
+            else None
         ),
     }
 
@@ -375,6 +440,99 @@ def evaluate(
     out["error_taxonomy_test"] = tax
     out["_docs"] = docs
     return out
+
+
+def _stp_page_clean(rs: list[FieldRec]) -> dict[str, float]:
+    pages: dict[str, list[bool]] = {}
+    for r in rs:
+        if r.found and r.routed == "auto":
+            pages.setdefault(r.doc.doc_id, []).append(r.correct_after)
+    return _stats(sum(all(v) for v in pages.values()), len(pages))
+
+
+def _conf_only_threshold(
+    conf: np.ndarray, correct: np.ndarray, target: float, min_support: int = 30
+) -> float:
+    best = 1.01
+    for t in sorted({round(float(c), 3) for c in conf}, reverse=True):
+        sel = conf >= t
+        if sel.sum() < min_support:
+            continue
+        if correct[sel].mean() >= target:
+            best = t
+        else:
+            break
+    return best
+
+
+def adversarial_eval(engine: OcrEngine, seed: int, n: int = 40) -> dict[str, Any]:
+    """Errors that PRESERVE the accounting identities: two sibling figures swapped, or a
+    compensating +d / -d shift between siblings. The totals stay right, so the arithmetic check
+    cannot see it. This measures the residual risk the straight-through policy leaves."""
+    rng = random.Random(seed + 99)
+    pool = []
+    for i in range(8):
+        ob = make_obligor(rng, 300 + i)
+        pool.append(generate_history(rng, ob.obligor.obligor_id, ob.trajectory, ob.shock_quarter))
+    pl_pairs = [
+        ("employee_benefits", "other_expenses"),
+        ("cost_of_materials", "other_expenses"),
+        ("current_tax", "deferred_tax"),
+    ]
+    bs_pairs = [
+        ("trade_payables", "other_current_liabilities"),
+        ("inventories", "trade_receivables"),
+        ("lt_borrowings", "lease_liabilities"),
+        ("net_fixed_assets", "cwip"),
+    ]
+    docs = []
+    for k in range(n):
+        h = rng.choice(pool)
+        qi = rng.randint(4, len(h.quarters) - 1)
+        q = h.quarters[qi]
+        stmt = "PL" if k % 2 == 0 else "BS"
+        a, b = rng.choice(pl_pairs if stmt == "PL" else bs_pairs)
+        lines = dict(q.lines)
+        mode = "swap" if k % 4 < 2 else "shift"
+        if mode == "swap":
+            lines[a], lines[b] = lines[b], lines[a]
+        else:
+            delta = max(1, int(min(abs(lines[a]), abs(lines[b])) * 0.15))
+            lines[a] += delta
+            lines[b] -= delta
+        page = render_statement(
+            rng, QuarterFinancials(q.period_end, lines), h.quarters[qi - 1], stmt, "mild"
+        )
+        docs.append(
+            Doc(f"adv-{mode}-{k:03d}", "mild", stmt, page, q, tamper=mode, tampered_codes=[a, b])
+        )
+    run_pipeline(engine, docs)
+    out: dict[str, Any] = {}
+    for mode in ("swap", "shift"):
+        ds = [d for d in docs if d.tamper == mode]
+        caught = passed_straight = 0
+        for d in ds:
+            assert d.ext is not None
+            fs = [d.ext.fields[c] for c in d.tampered_codes if c in d.ext.fields]
+            blocked = [hard_blocked(d.ext, f, d.results) for f in fs]
+            caught += (not fs) or any(blocked)
+            passed_straight += bool(fs) and not any(blocked)
+        out[mode] = {
+            "pages": len(ds),
+            "stopped_by_routing": _stats(caught, len(ds)),
+            "wrong_figures_would_pass_straight_through": _stats(passed_straight, len(ds)),
+        }
+    return out
+
+
+def _json_safe(o: Any) -> Any:
+    if isinstance(o, float) and (o != o or o in (float("inf"), float("-inf"))):
+        return None
+    if isinstance(o, dict):
+        return {k: _json_safe(v) for k, v in o.items()}
+    if isinstance(o, (list, tuple)):
+        return [_json_safe(v) for v in o]
+    return o
 
 
 def tamper_eval(engine: OcrEngine, seed: int, n_inc: int, n_con: int) -> dict[str, Any]:
@@ -448,9 +606,13 @@ def gate(report: dict[str, Any]) -> list[str]:
 
     def get(path: str) -> float:
         node: Any = report
-        for part in path.split("."):
+        parts = path.split(".")
+        key = "value"
+        if parts[-1] in ("ci_low", "ci_high"):
+            key, parts = parts[-1], parts[:-1]
+        for part in parts:
             node = node[part]
-        return float(node["value"] if isinstance(node, dict) and "value" in node else node)
+        return float(node[key] if isinstance(node, dict) and key in node else node)
 
     for path, minimum in spec["minimums"].items():
         v = get(path)
@@ -479,10 +641,10 @@ def _pick(d: dict[str, Any], path: str) -> float:
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--per-level", type=int, default=24)
+    ap.add_argument("--per-level", type=int, default=60)
     ap.add_argument("--seed", type=int, default=2026)
-    ap.add_argument("--tamper-inconsistent", type=int, default=30)
-    ap.add_argument("--tamper-consistent", type=int, default=16)
+    ap.add_argument("--tamper-inconsistent", type=int, default=40)
+    ap.add_argument("--tamper-consistent", type=int, default=24)
     ap.add_argument("--gate", action="store_true")
     ap.add_argument("--update-baseline", action="store_true")
     args = ap.parse_args(argv)
@@ -492,12 +654,15 @@ def main(argv: list[str] | None = None) -> int:
     docs = report.pop("_docs")
     report["documents"]["genuine_documents_flagged_by_validation"] = false_flag_rate(docs)
     report["latency"] = latency_benchmark(engine, docs)
+    report["identity_preserving_errors"] = adversarial_eval(engine, args.seed)
     report["tamper_detection"] = tamper_eval(
         engine, args.seed, args.tamper_inconsistent, args.tamper_consistent
     )
     report["wall_seconds"] = round(time.perf_counter() - t0, 1)
     REPORT.parent.mkdir(parents=True, exist_ok=True)
-    REPORT.write_text(json.dumps(report, indent=2, default=float), encoding="utf-8")
+    REPORT.write_text(
+        json.dumps(_json_safe(report), indent=2, default=float, allow_nan=False), encoding="utf-8"
+    )
     o = report["overall"]
     sys.stdout.reconfigure(encoding="utf-8")  # type: ignore[union-attr]
     print(
@@ -515,7 +680,10 @@ def main(argv: list[str] | None = None) -> int:
             f"  {k:46s} {100 * s['value']:.2f}%  [{100 * s['ci_low']:.2f}, {100 * s['ci_high']:.2f}]  n={s['n']}"
         )
     if args.update_baseline:
-        BASELINE.write_text(json.dumps(report, indent=2, default=float), encoding="utf-8")
+        BASELINE.write_text(
+            json.dumps(_json_safe(report), indent=2, default=float, allow_nan=False),
+            encoding="utf-8",
+        )
         print("baseline updated")
     if args.gate:
         failures = gate(report)

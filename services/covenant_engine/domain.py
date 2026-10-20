@@ -157,7 +157,21 @@ def evaluate_covenant(
             result=TestResult.DEFERRED,
             notes=["non-financial covenant: tested by obligation workflow"],
         )
-    series = sorted((s for s in spreads if s.basis == cov.test_basis), key=lambda s: s.period_end)
+    if cov.first_test_date is not None and period_end < cov.first_test_date:
+        return CovenantTestRecord(
+            **base,
+            value=None,
+            result=TestResult.DEFERRED,
+            notes=[f"before the first test date {cov.first_test_date}"],
+        )
+    chosen: dict[date, Spread] = {}
+    for s in spreads:  # a restated period: prefer the audited spread, else the latest supplied
+        if s.basis != cov.test_basis:
+            continue
+        cur = chosen.get(s.period_end)
+        if cur is None or s.audited or not cur.audited:
+            chosen[s.period_end] = s
+    series = [chosen[k] for k in sorted(chosen)]
     idx = next((i for i, s in enumerate(series) if s.period_end == period_end), None)
     if idx is None:
         return CovenantTestRecord(
@@ -185,9 +199,21 @@ def evaluate_covenant(
         return CovenantTestRecord(
             **base, value=None, result=TestResult.NOT_COMPUTABLE, notes=[str(exc)]
         )
+    cure_applied: str | None = None
     value = res.value
+    exact = res.exact if res.exact is not None else res.value
     notes: list[str] = []
-    passed = compare(value, cov.operator, cov.threshold)
+    passed = compare(exact, cov.operator, cov.threshold)
+    parts = _split_ratio(cov.formula)
+    if parts is not None:
+        den0 = Evaluator(cts.definitions, resolver).evaluate(parts[1]).value
+        if den0 < 0:
+            # A ratio over a negative base (negative EBITDA, negative net worth) is not a
+            # meaningful pass: a leverage covenant would read "-0.004x <= 3.5x" as compliant.
+            passed = False
+            notes.append(
+                f"denominator is negative ({den0}): ratio not meaningful; treated as a breach"
+            )
     if not passed and cov.equity_cure_allowed:
         cure = next(
             (
@@ -198,29 +224,32 @@ def evaluate_covenant(
             None,
         )
         used = ctx.equity_cures_used.get(cov.covenant_id, 0)
-        parts = _split_ratio(cov.formula)
-        if cure and used < cov.max_equity_cures and parts:
-            num = Evaluator(cts.definitions, resolver).evaluate(parts[0]).value
-            den = Evaluator(cts.definitions, resolver).evaluate(parts[1]).value
+        if cure and cure.amount_rupees > 0 and used < cov.max_equity_cures and parts:
+            num = Evaluator(cts.definitions, resolver).evaluate(parts[0]).exact
+            den = Evaluator(cts.definitions, resolver).evaluate(parts[1]).exact
+            assert num is not None and den is not None
+            # a leverage cure reduces the numerator, but never below zero
             adj = (
-                num - cure.amount_rupees
+                max(Decimal(0), num - cure.amount_rupees)
                 if cov.operator in ("<=", "<")
                 else num + cure.amount_rupees
             )
-            if den != 0:
-                cured = (adj / den).quantize(Q4, rounding=ROUND_HALF_EVEN)
+            if den > 0:
+                cured_exact = adj / den
                 notes.append(
                     f"equity cure ₹{cure.amount_rupees} applied ({cure.approval_id}); "
                     f"pre-cure value {value}"
                 )
-                ctx.equity_cures_used[cov.covenant_id] = used + 1
-                value, passed = cured, compare(cured, cov.operator, cov.threshold)
+                cure_applied = cure.approval_id
+                value = cured_exact.quantize(Q4, rounding=ROUND_HALF_EVEN)
+                passed = compare(cured_exact, cov.operator, cov.threshold)
     result = TestResult.COMPLIED if passed else TestResult.BREACHED
-    if not passed and cov.cure_period_days:
+    if not passed and (cov.cure_period_days or cov.grace_days):
         deadline = period_end + timedelta(days=cov.grace_days + cov.cure_period_days)
-        if ctx.today is None or ctx.today <= deadline:
+        # No clock supplied means no cure can be shown to be running: fail closed, stay BREACHED.
+        if ctx.today is not None and ctx.today <= deadline:
             result = TestResult.IN_CURE
-            notes.append(f"cure period until {deadline.isoformat()}")
+            notes.append(f"grace/cure period until {deadline.isoformat()}")
     headroom = None
     if cov.threshold != 0:
         h = (cov.threshold - value) if cov.operator in ("<=", "<") else (value - cov.threshold)
@@ -235,6 +264,7 @@ def evaluate_covenant(
         inputs={k: str(v) for k, v in res.inputs.items()},
         lineage=res.lineage,
         notes=notes,
+        equity_cure_applied=cure_applied,
     )
 
 

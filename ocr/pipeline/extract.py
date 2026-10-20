@@ -87,6 +87,7 @@ EXPECTED_LINES = {
     for st in ("PL", "BS")
 }
 MIN_YIELD = 0.6
+CONTINUITY_MAX = 5
 
 
 def map_label(label: str, statement: str) -> tuple[str | None, float]:
@@ -125,6 +126,7 @@ def extract_statement(
     unit_text = header if unit else None
     table: list[TableRow] = build_table(words, page_w)
     statement = detect_statement(words, table)
+    structural_flags = list(getattr(table, "flags", []))
     fields: dict[str, ExtField] = {}
     unmapped: list[tuple[str, float]] = []
     dups: list[str] = []
@@ -162,9 +164,30 @@ def extract_statement(
             if score <= fields[code].label_score:
                 continue
         fields[code] = ef
-    flags = []
+    flags = list(structural_flags)
     if unit is None:
         flags.append("unit_header_not_found")
+    # Unit sanity. Statements in lakhs/crores print two decimals; statements in thousands or whole
+    # rupees usually print none. A header that contradicts the number format is the signature of a
+    # 100x-1000x scale error, so such a page goes to a human (conservative by design).
+    if unit is not None and len(fields) >= 5:
+        two_dp = sum(bool(re.search(r"\.\d{2}$", f.raw_text)) for f in fields.values()) / len(
+            fields
+        )
+        if unit in (UnitScale.LAKHS, UnitScale.CRORES) and two_dp < 0.5:
+            flags.append("unit_format_conflict:large_unit_header_but_whole_numbers")
+        if unit in (UnitScale.THOUSANDS, UnitScale.RUPEES, UnitScale.MILLIONS) and two_dp > 0.2:
+            flags.append("unit_format_conflict:small_unit_header_but_decimals")
+    # Continuity: a value that jumps beyond 5x against the prior-period column on the same row is
+    # more likely a mis-paired row or a swapped value than a real quarter. And a figure with no
+    # prior-period value to compare with cannot be corroborated this way.
+    for ef in fields.values():
+        if ef.prior_paise is None:
+            ef.validations.append("no_prior_period")
+        elif ef.value_paise and ef.prior_paise:
+            ratio = abs(ef.value_paise) / abs(ef.prior_paise)
+            if ratio > CONTINUITY_MAX or ratio < 1 / CONTINUITY_MAX:
+                ef.validations.append("continuity_break")
     expected = 15 if statement == "PL" else 30
     if len(fields) < MIN_YIELD * expected:
         flags.append(f"rescan_recommended:{len(fields)}_of_{expected}_lines")

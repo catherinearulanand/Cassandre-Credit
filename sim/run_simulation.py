@@ -126,6 +126,7 @@ def stage_publish(book: list[BookEntry]) -> dict[str, Any]:
             svc.publish(
                 cts_of(e),
                 drafted_by="agent:sanction_compiler",
+                drafted_on_behalf_of="cad-maker-1",
                 checker=checker,
                 reason="verified against sanction letter",
                 rating=e.bundle.obligor.internal_rating,
@@ -158,6 +159,7 @@ def stage_covenants(
 ) -> tuple[dict[str, Any], list[dict[tuple[str, int], Any]]]:
     n = value_ok = result_ok = lineage_ok = 0
     breaches = 0
+    nonpositive = 0
     per_test_ms: list[float] = []
     all_results: list[dict[tuple[str, int], Any]] = []
     for e in book:
@@ -174,11 +176,20 @@ def stage_covenants(
                 per_test_ms.append((time.perf_counter() - t0) * 1000)
                 res[(cov.covenant_id, qi)] = r
                 ref = reference_ratio(KEYMAP[cov.name], e.hist, qi)
+                ref_exact = reference_ratio(KEYMAP[cov.name], e.hist, qi, exact=True)
                 n += 1
-                if ref is not None and r.value == ref:
+                if ref is None:
+                    # no meaningful ratio (non-positive base): the oracle expects a breach or
+                    # "not computable", never a pass
+                    unsafe = r.result.value in ("BREACHED", "NOT_COMPUTABLE", "IN_CURE")
+                    value_ok += unsafe
+                    result_ok += unsafe
+                    nonpositive += 1
+                elif r.value == ref:
                     value_ok += 1
                     assert cov.threshold is not None and cov.operator is not None
-                    exp = expected_covenant_result(cov.operator, ref, cov.threshold)
+                    assert ref_exact is not None
+                    exp = expected_covenant_result(cov.operator, ref_exact, cov.threshold)
                     if r.result.value == exp or (r.result.value == "IN_CURE" and exp == "BREACHED"):
                         result_ok += 1
                 lineage_ok += bool(r.lineage)
@@ -191,6 +202,7 @@ def stage_covenants(
         "result_matches_independent_calculation": stat(result_ok, n),
         "lineage_coverage": stat(lineage_ok, n),
         "breaches_or_in_cure": breaches,
+        "tests_with_non_positive_base": nonpositive,
         "latency_ms": {
             "p50": round(statistics.median(per_test_ms), 3),
             "p99": round(per_test_ms[int(0.99 * len(per_test_ms))], 3),
@@ -245,6 +257,8 @@ def stage_gate(book: list[BookEntry], cov: list[dict[tuple[str, int], Any]]) -> 
                 sma_bucket="STANDARD",
                 amendment_in_flight=False,
                 approved_payees={"SUP"},
+                facility_id="F",
+                as_of=date(2026, 10, 19),
             )
             d = gate.decide(
                 DrawdownRequest(
@@ -342,16 +356,28 @@ def stage_closure() -> dict[str, Any]:
 
 def stage_models(book: list[BookEntry], cov: list[dict[tuple[str, int], Any]]) -> dict[str, Any]:
     rows = build_rows(book, cov)
+    obligors = sorted({r["obligor"] for r in rows})
+    rng = random.Random(1234)
+    held = set(rng.sample(obligors, k=max(2, round(0.35 * len(obligors)))))
+    # EWS labels look 2 quarters ahead, so training rows stop 3 quarters before calibration
     ews = train_eval(
-        rows, "y_ews", "EWS stress score (M4)", train_q=range(4, 9), calib_q=9, test_q=range(10, 12)
+        rows,
+        "y_ews",
+        "EWS stress score (M4)",
+        train_q=range(4, 7),
+        calib_q=9,
+        test_q=range(10, 12),
+        test_obligors=held,
     )
+    # breach labels look 1 quarter ahead
     brk = train_eval(
         rows,
         "y_breach",
         "Covenant breach forecast (M6)",
-        train_q=range(4, 10),
+        train_q=range(4, 9),
         calib_q=10,
         test_q=range(11, 13),
+        test_obligors=held,
     )
     defaults = sum(1 for e in book if e.default_quarter is not None)
     idio = sum(1 for e in book if e.default_quarter is not None and e.idiosyncratic)
@@ -365,7 +391,7 @@ def stage_models(book: list[BookEntry], cov: list[dict[tuple[str, int], Any]]) -
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--n", type=int, default=300)
+    ap.add_argument("--n", type=int, default=600)
     ap.add_argument("--seed", type=int, default=2026)
     args = ap.parse_args(argv)
     t0 = time.perf_counter()

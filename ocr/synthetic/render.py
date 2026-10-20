@@ -82,6 +82,56 @@ LABEL_OVERRIDES = {
     "pat": ["Profit for the year", "Profit After Tax"],
     "pbt": ["Profit before tax"],
 }
+# Layout B prints company-style wording that was written independently of the chart-of-accounts
+# aliases the extractor matches against, so label mapping is tested on wording it was not built
+# from. Some of these will (correctly) fail to map and go to review.
+ALT_LABELS = {
+    "revenue_from_operations": "Sales and other operating income",
+    "other_income": "Other non-operating income",
+    "total_income": "Total income (I)",
+    "cost_of_materials": "Cost of raw material and components consumed",
+    "change_in_inventories": "Decrease/(increase) in stock-in-trade and WIP",
+    "employee_benefits": "Staff costs",
+    "finance_costs": "Interest and bank charges",
+    "depreciation_amortisation": "Depreciation and amortisation",
+    "other_expenses": "Other operating and administrative expenses",
+    "total_expenses": "Total expenditure (II)",
+    "pbt": "Profit before exceptional items and tax",
+    "current_tax": "Current income tax",
+    "deferred_tax": "Deferred tax charge/(credit)",
+    "tax_expense": "Tax expense for the period",
+    "pat": "Net profit for the period",
+    "share_capital": "Paid-up share capital",
+    "other_equity": "Reserves and surplus",
+    "total_equity": "Net worth",
+    "lt_borrowings": "Term loans from banks",
+    "lease_liabilities": "Obligations under leases",
+    "deferred_tax_liability": "Deferred tax liability",
+    "lt_provisions": "Long term provisions for employee benefits",
+    "other_non_current_liabilities": "Other long term liabilities",
+    "non_current_liabilities": "Total long term liabilities",
+    "st_borrowings": "Working capital borrowings from banks",
+    "current_maturities_ltd": "Instalments of term loans due within one year",
+    "trade_payables": "Sundry creditors for goods and services",
+    "other_current_liabilities": "Other liabilities payable within one year",
+    "st_provisions": "Short term provisions",
+    "current_liabilities": "Total liabilities due within a year",
+    "total_equity_and_liabilities": "TOTAL EQUITY AND LIABILITIES",
+    "net_fixed_assets": "Net block (tangible)",
+    "cwip": "Assets under construction",
+    "intangible_assets": "Intangibles",
+    "lt_investments": "Long term investments",
+    "deferred_tax_asset": "Deferred tax asset",
+    "other_non_current_assets": "Other long term assets",
+    "non_current_assets": "Total long term assets",
+    "inventories": "Closing stock",
+    "trade_receivables": "Receivables from customers",
+    "cash_and_equivalents": "Cash and bank",
+    "liquid_investments": "Short term investments",
+    "other_current_assets": "Other assets realisable within one year",
+    "current_assets": "Total assets realisable within a year",
+    "total_assets": "TOTAL ASSETS",
+}
 FONT_CANDIDATES = ["arial.ttf", "calibri.ttf", "times.ttf", "verdana.ttf", "tahoma.ttf", "cour.ttf"]
 
 
@@ -143,7 +193,12 @@ def render_statement(
     level: str,
     company: str = "Saffron Synthetic Textiles Pvt Ltd",
     unit_name: str | None = None,
+    layout: str | None = None,
 ) -> RenderedPage:
+    """Layout A: two amount columns, wording from the chart-of-accounts aliases.
+    Layout B: a Notes column, shifted amount columns, 'Year' headers, independent wording."""
+    layout = layout or rng.choice(["A", "B"])
+    col_cur, col_prev = (960, 1150) if layout == "A" else (930, 1130)
     unit_name = unit_name or rng.choice(["lakhs", "lakhs", "thousands", "rupees"])
     unit_text = {"lakhs": "(₹ in lakhs)", "thousands": "(₹ in '000)", "rupees": "(Amount in ₹)"}[
         unit_name
@@ -165,22 +220,30 @@ def render_statement(
         font=f_b,
     )
     d.text((60, 105), unit_text, fill="black", font=f_b)
-    d.text((820, 105), "Current", fill="black", font=f_b)
-    d.text((1010, 105), "Previous", fill="black", font=f_b)
+    if layout == "A":
+        d.text((820, 105), "Current", fill="black", font=f_b)
+        d.text((1010, 105), "Previous", fill="black", font=f_b)
+    else:
+        d.text((640, 105), "Note", fill="black", font=f_b)
+        d.text((770, 105), "Current Year", fill="black", font=f_b)
+        d.text((960, 105), "Previous Year", fill="black", font=f_b)
     d.line((50, 150, width - 50, 150), fill="black", width=2)
     fields: list[GtField] = []
     y = 165
     for code in order:
         is_total = BY_CODE[code].is_total
-        label = _pick_label(rng, code)
+        label = ALT_LABELS[code] if layout == "B" and rng.random() < 0.7 else _pick_label(rng, code)
         fnt = _font(font_name, size)
         d.text((60 + (0 if is_total else 24), y), label, fill="black", font=fnt)
         cur = _fmt(q.lines[code], unit_name)
         pri = _fmt(prior.lines[code], unit_name) if prior else "-"
         cw = d.textlength(cur, font=fnt)
-        x1 = 960
+        x1 = col_cur
         d.text((x1 - cw, y), cur, fill="black", font=fnt)
-        d.text((1150 - d.textlength(pri, font=fnt), y), pri, fill="black", font=fnt)
+        d.text((col_prev - d.textlength(pri, font=fnt), y), pri, fill="black", font=fnt)
+        if layout == "B" and rng.random() < 0.4:  # a note reference, e.g. "12", in its own column
+            note = str(rng.randint(2, 34))
+            d.text((700 - d.textlength(note, font=fnt), y), note, fill="black", font=fnt)
         bbox = ((x1 - cw - 4) / width, (y - 2) / height, (x1 + 4) / width, (y + size + 6) / height)
         fields.append(
             GtField(
@@ -193,7 +256,7 @@ def render_statement(
             )
         )
         if is_total:
-            d.line((560, y - 3, 960, y - 3), fill="black", width=1)
+            d.line((560, y - 3, col_cur, y - 3), fill="black", width=1)
         y += row_h
     page = RenderedPage(
         img,
@@ -203,7 +266,7 @@ def render_statement(
         statement,
         level,
         font_name,
-        {"size": size, "period_end": q.period_end.isoformat()},
+        {"size": size, "period_end": q.period_end.isoformat(), "layout": layout},
     )
     page.image = degrade(rng, img, level)
     return page

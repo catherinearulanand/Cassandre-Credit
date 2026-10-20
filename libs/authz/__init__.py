@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import re
+import unicodedata
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import StrEnum
@@ -93,6 +95,8 @@ ROLE_PERMISSIONS: dict[Role, frozenset[Permission]] = {
     Role.SERVICE: frozenset(),
 }
 
+_ID_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9:_.@\-]{0,127}")
+MONEY_PERMISSIONS = frozenset({Permission.LIMIT_CHANGE, Permission.OTS_APPROVE})
 HUMAN_ROLES = frozenset(r for r in Role if r not in (Role.AGENT, Role.SERVICE))
 
 
@@ -106,8 +110,18 @@ class Principal:
     obligor_ids: frozenset[str] | None = None  # borrower users are pinned to their own obligor
     on_behalf_of: str | None = None  # agents act for a named human
     delegated_power_paise: int = 0  # sanctioning authority's delegated financial power
+    # an agent's rights are the intersection of its own role and the rights of the human it acts for
+    delegator_permissions: frozenset[Permission] | None = None
 
     def __post_init__(self) -> None:
+        if not _ID_RE.fullmatch(self.id):
+            raise AuthorizationError("principal ids must be plain ASCII", code="bad_id")
+        if self.kind == "agent" and not _ID_RE.fullmatch(self.on_behalf_of or ""):
+            raise AuthorizationError("agent principal needs a human", code="agent_unbound")
+        if self.kind == "agent" and self.delegator_permissions is None:
+            raise AuthorizationError("build agents with Principal.for_agent", code="agent_unbound")
+        if self.kind == "service" and not self.roles <= {Role.SERVICE}:
+            raise AuthorizationError("a service may hold only the service role", code="bad_role")
         if self.kind not in ("human", "agent", "service"):
             raise AuthorizationError(f"unknown principal kind {self.kind!r}", code="bad_kind")
         if self.kind == "agent" and not (self.on_behalf_of and self.on_behalf_of.strip()):
@@ -132,6 +146,7 @@ class Principal:
             portfolios=human.portfolios,
             obligor_ids=human.obligor_ids,
             on_behalf_of=human.id,
+            delegator_permissions=human.permissions(),
         )
 
     def permissions(self) -> frozenset[Permission]:
@@ -162,6 +177,10 @@ def authorize(principal: Principal, perm: Permission, scope: ResourceScope | Non
             )
         if not principal.on_behalf_of:
             raise AuthorizationError("agent call without a human principal", code="agent_unbound")
+        if perm not in (principal.delegator_permissions or frozenset()):
+            raise AuthorizationError(
+                "the human behind this agent lacks that right", code="agent_cap"
+            )
     if scope is not None:
         if "*" not in principal.regions and scope.region not in principal.regions:
             raise AuthorizationError("outside region scope", code="abac_region")
@@ -184,6 +203,7 @@ class ApprovalRecord:
     reason: str
     at: datetime
     amount_paise: int | None
+    required: str
     signature: Signature
 
     def record_body(self) -> dict[str, object]:
@@ -200,11 +220,15 @@ class ApprovalRecord:
             "reason": self.reason,
             "at": self.at.isoformat(),
             "amount_paise": self.amount_paise,
+            "required": self.required,
         }
 
 
 def _norm(identity: str) -> str:
-    return " ".join(identity.split()).casefold()
+    """Canonical form of an identity for comparison: NFKC, no format/control characters, folded."""
+    t = unicodedata.normalize("NFKC", identity)
+    t = "".join(ch for ch in t if unicodedata.category(ch) not in ("Cf", "Cc"))
+    return " ".join(t.split()).casefold()
 
 
 class MakerChecker:
@@ -231,6 +255,16 @@ class MakerChecker:
     ) -> ApprovalRecord:
         if checker.kind != "human":
             raise AuthorizationError("checker must be a human", code="checker_not_human")
+        for name in (maker_id, maker_on_behalf_of):
+            if name is not None and not _ID_RE.fullmatch(name):
+                raise AuthorizationError("maker identity must be plain ASCII", code="bad_id")
+        if (
+            _norm(maker_id).startswith(("agent:", "agent-", "agent_", "svc:", "svc-"))
+            and not maker_on_behalf_of
+        ):
+            raise AuthorizationError(
+                "an agent or service maker must name the human it acts for", code="maker_unbound"
+            )
         # An agent maker is the human it acts for: that human cannot also be the checker.
         makers = {_norm(maker_id)} | ({_norm(maker_on_behalf_of)} if maker_on_behalf_of else set())
         if _norm(checker.id) in makers:
@@ -238,6 +272,10 @@ class MakerChecker:
         if not reason.strip():
             raise AuthorizationError("approval requires a written reason", code="reason_required")
         authorize(checker, required, scope)
+        if required in MONEY_PERMISSIONS and amount_paise is None:
+            raise AuthorizationError("this approval must state the amount", code="amount_required")
+        if amount_paise is not None and (isinstance(amount_paise, bool) or amount_paise < 0):
+            raise AuthorizationError("amount must be a non-negative integer", code="bad_amount")
         if amount_paise is not None and amount_paise > checker.delegated_power_paise:
             raise AuthorizationError(
                 "amount exceeds the checker's delegated financial power", code="delegated_power"
@@ -255,6 +293,7 @@ class MakerChecker:
             reason=reason,
             at=self._clock.now(),
             amount_paise=amount_paise,
+            required=required.value,
             signature=Signature("", "", ""),
         )
         sig = self._signer.sign_hash(content_hash(draft.record_body()))
@@ -262,7 +301,9 @@ class MakerChecker:
         self.records[record.approval_id] = record
         return record
 
-    def verify(self, record: ApprovalRecord, subject_payload: object) -> None:
+    def verify(
+        self, record: ApprovalRecord, subject_payload: object, *, required: Permission | None = None
+    ) -> None:
         """Verify the whole record (every field is signed) and its binding to the payload."""
         stored = self.records.get(record.approval_id)
         if stored is not None and stored != record:
@@ -273,10 +314,14 @@ class MakerChecker:
         )
         if h != record.subject_hash:
             raise IntegrityError("approval is not bound to this payload")
+        if required is not None and record.required != required.value:
+            raise IntegrityError("approval was granted for a different permission")
 
-    def verify_id(self, approval_id: str, subject_payload: object) -> ApprovalRecord:
+    def verify_id(
+        self, approval_id: str, subject_payload: object, *, required: Permission | None = None
+    ) -> ApprovalRecord:
         record = self.records.get(approval_id)
         if record is None:
             raise IntegrityError(f"unknown approval {approval_id}")
-        self.verify(record, subject_payload)
+        self.verify(record, subject_payload, required=required)
         return record

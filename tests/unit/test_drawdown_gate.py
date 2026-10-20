@@ -37,6 +37,8 @@ def _ctx(**kw) -> GateContext:  # type: ignore[no-untyped-def]
         amendment_in_flight=False,
         approved_payees={"SUP-1"},
         related_party_payees={"SUP-RP"},
+        facility_id="F",
+        as_of=TODAY,
     )
     base.update(kw)
     return GateContext(**base)  # type: ignore[arg-type]
@@ -136,7 +138,7 @@ def test_reject_beats_refer() -> None:
 )
 def test_fails_closed_on_any_dependency_failure(failure: Exception) -> None:
     d = _gate(failure).decide(REQ)
-    assert d.decision == "REJECT" and d.reasons[0].startswith("gate_unavailable")
+    assert d.decision == "REJECT" and d.reasons[0].startswith(("gate_unavailable", "gate_timeout"))
     assert len(d.checks) == 10
 
 

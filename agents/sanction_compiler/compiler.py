@@ -132,8 +132,14 @@ def grammar_extract(lines: list[str]) -> SanctionExtraction:
     ex = SanctionExtraction()
 
     def put(name: str, value: Any, line: int, conf: float = 0.99) -> None:
-        if value is not None:
-            ex.fields[name] = Field(value, line, conf)
+        if value is None:
+            return
+        prior = ex.fields.get(name)
+        if prior is not None and prior.value != value:
+            # two lines disagree: do not pick one. A human resolves it.
+            ex.unresolved.append(f"conflict:{name}@lines{prior.line},{line}")
+            return
+        ex.fields[name] = Field(value, line, conf)
 
     for i, ln in enumerate(lines):
         if m := re.search(r"Ref:\s*(\S+)", ln):
