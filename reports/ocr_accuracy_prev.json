@@ -1,0 +1,511 @@
+{
+  "pipeline_version": "ocr-pipeline/0.3.0",
+  "engine": "rapidocr-onnx==1.4.4",
+  "seed": 2026,
+  "corpus": {
+    "documents": 96,
+    "per_level": 24,
+    "levels": [
+      "clean",
+      "mild",
+      "moderate",
+      "severe"
+    ],
+    "calibration_docs": 48,
+    "test_docs": 48,
+    "test_fields": 1080
+  },
+  "calibrator": {
+    "features": [
+      "ocr_conf",
+      "label_score",
+      "id_holds",
+      "id_none",
+      "id_violated",
+      "repaired",
+      "autocorr"
+    ],
+    "threshold": 0.6505,
+    "target_precision": 0.995,
+    "fitted_on_fields": 864
+  },
+  "overall": {
+    "fields": 1080,
+    "recall_found": {
+      "value": 0.7907407407407407,
+      "ci_low": 0.7654706340490708,
+      "ci_high": 0.8139498273910512,
+      "n": 1080
+    },
+    "accuracy_raw": {
+      "value": 0.7453703703703703,
+      "ci_low": 0.7185494564653184,
+      "ci_high": 0.7704518883806443,
+      "n": 1080
+    },
+    "accuracy_after_validation": {
+      "value": 0.7472222222222222,
+      "ci_low": 0.7204568931113341,
+      "ci_high": 0.7722350279221454,
+      "n": 1080
+    },
+    "stp_rate": {
+      "value": 0.6759259259259259,
+      "ci_low": 0.6474313029054707,
+      "ci_high": 0.7031734349086157,
+      "n": 1080
+    },
+    "stp_precision": {
+      "value": 1.0,
+      "ci_low": 0.9947650828189627,
+      "ci_high": 1.0,
+      "n": 730
+    },
+    "review_rate": {
+      "value": 0.32407407407407407,
+      "ci_low": 0.2968265650913842,
+      "ci_high": 0.35256869709452926,
+      "n": 1080
+    },
+    "delivered_accuracy_assuming_perfect_review": {
+      "value": 1.0,
+      "ci_low": 0.9964555706295092,
+      "ci_high": 1.0,
+      "n": 1080
+    },
+    "delivered_accuracy_assuming_99pct_review": {
+      "value": 0.9972222222222222,
+      "ci_low": 0.9918648242716023,
+      "ci_high": 0.9990548820766317,
+      "n": 1080
+    },
+    "mean_cer_amount": 0.2157095091122869
+  },
+  "by_level": {
+    "clean": {
+      "fields": 270,
+      "recall_found": {
+        "value": 1.0,
+        "ci_low": 0.9859714521095407,
+        "ci_high": 1.0,
+        "n": 270
+      },
+      "accuracy_raw": {
+        "value": 1.0,
+        "ci_low": 0.9859714521095407,
+        "ci_high": 1.0,
+        "n": 270
+      },
+      "accuracy_after_validation": {
+        "value": 1.0,
+        "ci_low": 0.9859714521095407,
+        "ci_high": 1.0,
+        "n": 270
+      },
+      "stp_rate": {
+        "value": 1.0,
+        "ci_low": 0.9859714521095407,
+        "ci_high": 1.0,
+        "n": 270
+      },
+      "stp_precision": {
+        "value": 1.0,
+        "ci_low": 0.9859714521095407,
+        "ci_high": 1.0,
+        "n": 270
+      },
+      "review_rate": {
+        "value": 0.0,
+        "ci_low": 8.673617379884035e-19,
+        "ci_high": 0.014028547890459302,
+        "n": 270
+      },
+      "delivered_accuracy_assuming_perfect_review": {
+        "value": 1.0,
+        "ci_low": 0.9859714521095407,
+        "ci_high": 1.0,
+        "n": 270
+      },
+      "delivered_accuracy_assuming_99pct_review": {
+        "value": 1.0,
+        "ci_low": 0.9859714521095407,
+        "ci_high": 1.0,
+        "n": 270
+      },
+      "mean_cer_amount": 0.0
+    },
+    "mild": {
+      "fields": 270,
+      "recall_found": {
+        "value": 1.0,
+        "ci_low": 0.9859714521095407,
+        "ci_high": 1.0,
+        "n": 270
+      },
+      "accuracy_raw": {
+        "value": 1.0,
+        "ci_low": 0.9859714521095407,
+        "ci_high": 1.0,
+        "n": 270
+      },
+      "accuracy_after_validation": {
+        "value": 1.0,
+        "ci_low": 0.9859714521095407,
+        "ci_high": 1.0,
+        "n": 270
+      },
+      "stp_rate": {
+        "value": 1.0,
+        "ci_low": 0.9859714521095407,
+        "ci_high": 1.0,
+        "n": 270
+      },
+      "stp_precision": {
+        "value": 1.0,
+        "ci_low": 0.9859714521095407,
+        "ci_high": 1.0,
+        "n": 270
+      },
+      "review_rate": {
+        "value": 0.0,
+        "ci_low": 8.673617379884035e-19,
+        "ci_high": 0.014028547890459302,
+        "n": 270
+      },
+      "delivered_accuracy_assuming_perfect_review": {
+        "value": 1.0,
+        "ci_low": 0.9859714521095407,
+        "ci_high": 1.0,
+        "n": 270
+      },
+      "delivered_accuracy_assuming_99pct_review": {
+        "value": 1.0,
+        "ci_low": 0.9859714521095407,
+        "ci_high": 1.0,
+        "n": 270
+      },
+      "mean_cer_amount": 0.0
+    },
+    "moderate": {
+      "fields": 270,
+      "recall_found": {
+        "value": 0.9111111111111111,
+        "ci_low": 0.8711473158243793,
+        "ci_high": 0.9395403225767985,
+        "n": 270
+      },
+      "accuracy_raw": {
+        "value": 0.9074074074074074,
+        "ci_low": 0.8668878710515585,
+        "ci_high": 0.936496275111771,
+        "n": 270
+      },
+      "accuracy_after_validation": {
+        "value": 0.9111111111111111,
+        "ci_low": 0.8711473158243793,
+        "ci_high": 0.9395403225767985,
+        "n": 270
+      },
+      "stp_rate": {
+        "value": 0.6962962962962963,
+        "ci_low": 0.6390066038100417,
+        "ci_high": 0.7480784847959261,
+        "n": 270
+      },
+      "stp_precision": {
+        "value": 1.0,
+        "ci_low": 0.9799751461622506,
+        "ci_high": 1.0,
+        "n": 188
+      },
+      "review_rate": {
+        "value": 0.3037037037037037,
+        "ci_low": 0.25192151520407385,
+        "ci_high": 0.36099339618995824,
+        "n": 270
+      },
+      "delivered_accuracy_assuming_perfect_review": {
+        "value": 1.0,
+        "ci_low": 0.9859714521095407,
+        "ci_high": 1.0,
+        "n": 270
+      },
+      "delivered_accuracy_assuming_99pct_review": {
+        "value": 1.0,
+        "ci_low": 0.9859714521095407,
+        "ci_high": 1.0,
+        "n": 270
+      },
+      "mean_cer_amount": 0.08950617283950617
+    },
+    "severe": {
+      "fields": 270,
+      "recall_found": {
+        "value": 0.2518518518518518,
+        "ci_low": 0.20380231549904215,
+        "ci_high": 0.3068637045651117,
+        "n": 270
+      },
+      "accuracy_raw": {
+        "value": 0.07407407407407407,
+        "ci_low": 0.04845996426887591,
+        "ci_high": 0.1116384283785524,
+        "n": 270
+      },
+      "accuracy_after_validation": {
+        "value": 0.07777777777777778,
+        "ci_low": 0.05143131113274743,
+        "ci_high": 0.11597057375252934,
+        "n": 270
+      },
+      "stp_rate": {
+        "value": 0.007407407407407408,
+        "ci_low": 0.002033691697358238,
+        "ci_high": 0.026601840668797967,
+        "n": 270
+      },
+      "stp_precision": {
+        "value": 1.0,
+        "ci_low": 0.34237195288961925,
+        "ci_high": 1.0,
+        "n": 2
+      },
+      "review_rate": {
+        "value": 0.9925925925925926,
+        "ci_low": 0.973398159331202,
+        "ci_high": 0.9979663083026418,
+        "n": 270
+      },
+      "delivered_accuracy_assuming_perfect_review": {
+        "value": 1.0,
+        "ci_low": 0.9859714521095407,
+        "ci_high": 1.0,
+        "n": 270
+      },
+      "delivered_accuracy_assuming_99pct_review": {
+        "value": 0.9925925925925926,
+        "ci_low": 0.973398159331202,
+        "ci_high": 0.9979663083026418,
+        "n": 270
+      },
+      "mean_cer_amount": 0.7733318636096415
+    }
+  },
+  "by_statement": {
+    "PL": {
+      "fields": 360,
+      "recall_found": {
+        "value": 0.8055555555555556,
+        "ci_low": 0.7615342901921529,
+        "ci_high": 0.8431244404202896,
+        "n": 360
+      },
+      "accuracy_raw": {
+        "value": 0.7638888888888888,
+        "ci_low": 0.7173749350239524,
+        "ci_high": 0.8048303323231567,
+        "n": 360
+      },
+      "accuracy_after_validation": {
+        "value": 0.7638888888888888,
+        "ci_low": 0.7173749350239524,
+        "ci_high": 0.8048303323231567,
+        "n": 360
+      },
+      "stp_rate": {
+        "value": 0.7277777777777777,
+        "ci_low": 0.6795733068294959,
+        "ci_high": 0.7711722923543246,
+        "n": 360
+      },
+      "stp_precision": {
+        "value": 1.0,
+        "ci_low": 0.9855492895017182,
+        "ci_high": 0.9999999999999998,
+        "n": 262
+      },
+      "review_rate": {
+        "value": 0.2722222222222222,
+        "ci_low": 0.2288277076456753,
+        "ci_high": 0.32042669317050393,
+        "n": 360
+      },
+      "delivered_accuracy_assuming_perfect_review": {
+        "value": 1.0,
+        "ci_low": 0.9894415591839967,
+        "ci_high": 1.0,
+        "n": 360
+      },
+      "delivered_accuracy_assuming_99pct_review": {
+        "value": 0.9972222222222222,
+        "ci_low": 0.9844351634050557,
+        "ci_high": 0.9995094982279189,
+        "n": 360
+      },
+      "mean_cer_amount": 0.20151124338624343
+    },
+    "BS": {
+      "fields": 720,
+      "recall_found": {
+        "value": 0.7833333333333333,
+        "ci_low": 0.7517793665629408,
+        "ci_high": 0.8118798649595359,
+        "n": 720
+      },
+      "accuracy_raw": {
+        "value": 0.7361111111111112,
+        "ci_low": 0.7027253269510486,
+        "ci_high": 0.7669906993176822,
+        "n": 720
+      },
+      "accuracy_after_validation": {
+        "value": 0.7388888888888889,
+        "ci_low": 0.7055969314286354,
+        "ci_high": 0.7696451657373744,
+        "n": 720
+      },
+      "stp_rate": {
+        "value": 0.65,
+        "ci_low": 0.6144471809367691,
+        "ci_high": 0.6839606475163069,
+        "n": 720
+      },
+      "stp_precision": {
+        "value": 1.0,
+        "ci_low": 0.9918582846446773,
+        "ci_high": 1.0,
+        "n": 468
+      },
+      "review_rate": {
+        "value": 0.35,
+        "ci_low": 0.316039352483693,
+        "ci_high": 0.38555281906323097,
+        "n": 720
+      },
+      "delivered_accuracy_assuming_perfect_review": {
+        "value": 1.0,
+        "ci_low": 0.9946927615102529,
+        "ci_high": 0.9999999999999999,
+        "n": 720
+      },
+      "delivered_accuracy_assuming_99pct_review": {
+        "value": 0.9972222222222222,
+        "ci_low": 0.9899287723292619,
+        "ci_high": 0.999237918283712,
+        "n": 720
+      },
+      "mean_cer_amount": 0.22280864197530864
+    }
+  },
+  "calibration": {
+    "ece_raw_ocr_confidence": 0.030736658601651416,
+    "ece_calibrated": 0.02293816569063231
+  },
+  "ablation_confidence_only_routing": {
+    "rule": "auto-accept when raw OCR confidence >= 0.90, no arithmetic validation",
+    "stp_rate": {
+      "value": 0.9531615925058547,
+      "ci_low": 0.9368477588022042,
+      "ci_high": 0.9654167151985904,
+      "n": 854
+    },
+    "stp_precision": {
+      "value": 0.9717444717444718,
+      "ci_low": 0.9579577872190391,
+      "ci_high": 0.9810993602774932,
+      "n": 814
+    },
+    "delivered_accuracy_assuming_perfect_review": {
+      "value": 0.9730679156908665,
+      "ci_low": 0.9599109590180691,
+      "ci_high": 0.9819878717217784,
+      "n": 854
+    }
+  },
+  "documents": {
+    "unit_detected_supported_tiers": {
+      "value": 1.0,
+      "ci_low": 0.9035781695514236,
+      "ci_high": 1.0,
+      "n": 36
+    },
+    "severe_pages_flagged_for_rescan": {
+      "value": 0.8333333333333334,
+      "ci_low": 0.5519636426153274,
+      "ci_high": 0.9530358523851776,
+      "n": 12
+    },
+    "unit_detected_correctly": {
+      "value": 0.7916666666666666,
+      "ci_low": 0.6574082647864651,
+      "ci_high": 0.8826985220411018,
+      "n": 48
+    },
+    "all_fields_correct": {
+      "value": 0.625,
+      "ci_low": 0.48362506125249566,
+      "ci_high": 0.7478492759593187,
+      "n": 48
+    },
+    "fully_straight_through_and_correct": {
+      "value": 0.625,
+      "ci_low": 0.48362506125249566,
+      "ci_high": 0.7478492759593187,
+      "n": 48
+    },
+    "mean_ocr_seconds_per_page": NaN,
+    "genuine_documents_flagged_by_validation": {
+      "value": 0.0,
+      "ci_low": 0.0,
+      "ci_high": 0.113517091390478,
+      "n": 30
+    }
+  },
+  "error_taxonomy_test": {
+    "missing_row": 226,
+    "wrong_value_flagged_for_review": 47,
+    "wrong_value_auto": 0
+  },
+  "latency": {
+    "engine_hardware": "CPU (ONNX Runtime), single process",
+    "clean": 6.676634433330037,
+    "mild": 6.5561107333439095,
+    "moderate": 6.824666633328889,
+    "severe": 5.685027266658532,
+    "mean_seconds_per_page": 6.435609766665341,
+    "p95_seconds_per_page": 9.334168244997272
+  },
+  "tamper_detection": {
+    "inconsistent": {
+      "documents": 30,
+      "flagged_for_review": {
+        "value": 1.0,
+        "ci_low": 0.8864829086095221,
+        "ci_high": 1.0,
+        "n": 30
+      },
+      "tampered_cell_pinpointed": {
+        "value": 1.0,
+        "ci_low": 0.8864829086095221,
+        "ci_high": 1.0,
+        "n": 30
+      }
+    },
+    "consistent": {
+      "documents": 16,
+      "flagged_for_review": {
+        "value": 0.0,
+        "ci_low": 0.0,
+        "ci_high": 0.19361341827271994,
+        "n": 16
+      },
+      "tampered_cell_pinpointed": {
+        "value": 0.0,
+        "ci_low": 0.0,
+        "ci_high": 0.19361341827271994,
+        "n": 16
+      }
+    }
+  },
+  "wall_seconds": 113.6
+}

@@ -11,7 +11,7 @@ needs more human hours on unusual documents.
 | Question | Result | What it means |
 |---|---|---|
 | Can a fixed grammar compile the bank's **standard** sanction-letter template? | 221 of 221 letters, every field correct, every field cited | Standard templates need no model. **Caveat:** the letters and the grammar come from the same template in this repository, so this proves the plumbing, not coverage of real letters. |
-| Can the same grammar compile a **negotiated** facility agreement (defined terms, clause cross-references, paraphrase)? | 0 of 79 | This is the measured case for a model. Every real agreement that departs from the template lands here. |
+| Can the same grammar compile a **negotiated** facility agreement (defined terms, clause cross-references, paraphrase)? | 0 of 79 | This shows how brittle a fixed grammar is to wording it was not written for. It is a property of this generator, not a measurement of how many real agreements need a model, and it says nothing about how well a model would read them. |
 | Do covenant tests, drawing power, SMA, the gate need a model? | Matched independent calculators on 13,540 covenant tests, 900 gate decisions, 4,330 SMA classifications, 900 DP cases | No, and a model would only add risk. |
 
 ## Where an LLM is used, and where it is not

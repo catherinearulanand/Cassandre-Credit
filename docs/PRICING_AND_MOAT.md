@@ -20,10 +20,11 @@ size or bank volume is asserted here, because none was supplied or verifiable. R
 ### 2. Security and AI governance as a product, not an appendix
 
 Banks must satisfy RBI IT governance, outsourcing and FREE-AI expectations before any model touches a
-decision. We sell the evidence along with the software: the model gateway log, the AI inventory, the audit
-chain, the independent audit log, per-model cards and validation reports, red-team results. This is a priced
-module (see below), not a free feature, because it removes work from the bank's own model-risk and
-infosec teams.
+decision. We sell the evidence along with the software. **Built today:** the model gateway call log, the hash-chained
+audit log, signed approvals, the independent audit log (`docs/AUDIT_LOG.md`) and measured evaluation reports.
+**Not built yet:** per-model cards, independent validation reports, an AI inventory table, FREE-AI mapping and
+red-team results (`docs/model-cards/` is empty). The pack is priced as a module because it removes work
+from the bank's own model-risk and infosec teams, but the unbuilt parts must exist before it is sold.
 
 ### 3. Pricing that tracks the bank's value
 

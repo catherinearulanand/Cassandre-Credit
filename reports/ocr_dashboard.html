@@ -1,0 +1,260 @@
+<title>Statement OCR Accuracy</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a ledger-style report. Prose column on the left, evidence tables and charts beside it. */
+:root {
+  --bg: #f6f7f5; --panel: #ffffff; --ink: #1c2421; --muted: #5d6a65; --rule: #d9dfdb;
+  --accent: #1f6b57; --accent-soft: #dcece6; --bad: #b3361f; --bad-soft: #f5dfd9; --warn: #9a6b00; --warn-soft: #f4e8c8;
+  --bar: #1f6b57; --bar-2: #86a99d; --bar-3: #c8d3ce; --grid: #e4e9e6;
+  --sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #131917; --panel: #1b2321; --ink: #e5ece8; --muted: #9aa8a2; --rule: #2d3935;
+    --accent: #5fc2a4; --accent-soft: #1f3a32; --bad: #f08a72; --bad-soft: #3b231d; --warn: #e2b44a; --warn-soft: #3a3016;
+    --bar: #5fc2a4; --bar-2: #3f7a69; --bar-3: #2d3935; --grid: #25302c; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #131917; --panel: #1b2321; --ink: #e5ece8; --muted: #9aa8a2; --rule: #2d3935;
+  --accent: #5fc2a4; --accent-soft: #1f3a32; --bad: #f08a72; --bad-soft: #3b231d; --warn: #e2b44a; --warn-soft: #3a3016;
+  --bar: #5fc2a4; --bar-2: #3f7a69; --bar-3: #2d3935; --grid: #25302c; color-scheme: dark;
+}
+body { background: var(--bg); color: var(--ink); font-family: var(--sans); line-height: 1.55; padding-block: 40px 64px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.wrap { max-width: 1040px; margin: 0 auto; display: grid; gap: 40px; }
+h1 { font-size: clamp(1.7rem, 4vw, 2.3rem); line-height: 1.15; margin: 0; font-weight: 600; letter-spacing: -0.01em; text-wrap: balance; }
+h2 { font-size: 1.15rem; margin: 0 0 4px; font-weight: 600; text-wrap: balance; }
+p { margin: 0; max-width: 68ch; }
+.lede { color: var(--muted); font-size: 1.05rem; }
+.meta { font-family: var(--mono); font-size: 0.78rem; color: var(--muted); display: flex; flex-wrap: wrap; gap: 6px 18px; }
+section { display: grid; gap: 14px; min-width: 0; }
+.cols { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 28px; align-items: start; }
+@media (max-width: 760px) { .cols { grid-template-columns: minmax(0, 1fr); } }
+.note { color: var(--muted); font-size: 0.92rem; }
+.verdict { display: flex; flex-wrap: wrap; gap: 8px; }
+.pill { font-family: var(--mono); font-size: 0.78rem; padding: 3px 10px; border-radius: 99px; background: var(--accent-soft); color: var(--accent); border: 1px solid transparent; }
+.pill.bad { background: var(--bad-soft); color: var(--bad); }
+.pill.warn { background: var(--warn-soft); color: var(--warn); }
+.scroll { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 0.9rem; font-variant-numeric: tabular-nums; }
+th, td { text-align: right; padding: 8px 10px; border-bottom: 1px solid var(--rule); white-space: nowrap; }
+th:first-child, td:first-child { text-align: left; }
+th { font-weight: 500; color: var(--muted); font-size: 0.75rem; letter-spacing: 0.06em; text-transform: uppercase; }
+td small { color: var(--muted); font-family: var(--mono); font-size: 0.72rem; }
+.chart { background: var(--panel); border: 1px solid var(--rule); border-radius: 6px; padding: 14px 12px 8px; }
+svg { width: 100%; height: auto; display: block; }
+svg text { fill: var(--ink); font-family: var(--sans); font-size: 12px; }
+svg .m { fill: var(--muted); font-family: var(--mono); font-size: 11px; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 0.8rem; color: var(--muted); margin: 0 4px 6px; }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
+.caveat { border-left: 3px solid var(--warn); background: var(--warn-soft); padding: 12px 16px; border-radius: 0 6px 6px 0; }
+.caveat h2 { color: var(--warn); }
+ul { margin: 0; padding-left: 1.1em; display: grid; gap: 6px; max-width: 70ch; }
+code { font-family: var(--mono); font-size: 0.85em; }
+</style>
+
+<div class="wrap">
+  <header style="display:grid;gap:14px">
+    <div class="meta" id="meta"></div>
+    <h1 id="headline"></h1>
+    <p class="lede" id="lede"></p>
+    <div class="verdict" id="verdict"></div>
+  </header>
+
+  <section>
+    <h2>What gets read, and what a person still sees</h2>
+    <div class="cols">
+      <p class="note" id="tiernote"></p>
+      <div class="chart"><div class="legend" id="leg1"></div><svg id="c1" viewBox="0 0 560 300" role="img" aria-label="Read rate, accuracy and straight-through rate by scan quality"></svg></div>
+    </div>
+    <div class="scroll"><table id="tiertable"></table></div>
+  </section>
+
+  <section>
+    <h2>Two statement layouts</h2>
+    <div class="cols">
+      <p class="note" id="laynote"></p>
+      <div class="scroll"><table id="laytable"></table></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Why the arithmetic check matters</h2>
+    <div class="cols">
+      <p class="note" id="ablnote"></p>
+      <div class="chart"><div class="legend" id="leg2"></div><svg id="c2" viewBox="0 0 560 190" role="img" aria-label="Wrong values reaching the ledger, two routing rules"></svg></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Edited documents</h2>
+    <div class="cols">
+      <p class="note" id="tampernote"></p>
+      <div class="scroll"><table id="tampertable"></table></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Errors the arithmetic cannot see</h2>
+    <div class="cols">
+      <p class="note" id="idnote"></p>
+      <div class="scroll"><table id="idtable"></table></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Speed and calibration</h2>
+    <div class="scroll"><table id="misc"></table></div>
+  </section>
+
+  <section class="caveat">
+    <h2>What this does not prove</h2>
+    <ul id="caveats"></ul>
+  </section>
+</div>
+
+<script id="data" type="application/json">{"pipeline_version": "ocr-pipeline/0.3.0", "engine": "rapidocr-onnx==1.4.4", "seed": 2026, "corpus": {"documents": 240, "per_level": 60, "levels": ["clean", "mild", "moderate", "severe"], "calibration_docs": 129, "test_docs": 111, "test_fields": 2505}, "calibrator": {"features": ["ocr_conf", "label_score", "id_holds", "id_none", "id_violated", "repaired", "autocorr"], "threshold": 0.1993, "target_precision": 0.995, "fitted_on_fields": 1530}, "overall": {"fields": 2505, "recall_found": {"value": 0.5417165668662675, "ci_low": 0.5221553694746596, "ci_high": 0.5611500093902316, "n": 2505}, "accuracy_raw": {"value": 0.5029940119760479, "ci_low": 0.4834243451201529, "ci_high": 0.5225545098223032, "n": 2505}, "accuracy_after_validation": {"value": 0.5029940119760479, "ci_low": 0.4834243451201529, "ci_high": 0.5225545098223032, "n": 2505}, "stp_rate": {"value": 0.3209580838323353, "ci_low": 0.30296214240475594, "ci_high": 0.3395023320363567, "n": 2505}, "stp_precision": {"value": 1.0, "ci_low": 0.9952446123101358, "ci_high": 0.9999999999999999, "n": 804}, "review_rate": {"value": 0.6790419161676646, "ci_low": 0.6604976679636433, "ci_high": 0.6970378575952442, "n": 2505}, "delivered_accuracy_assuming_perfect_review": {"value": 1.0, "ci_low": 0.998468775390204, "ci_high": 1.0, "n": 2505}, "delivered_accuracy_assuming_99pct_review": {"value": 0.9952095808383233, "ci_low": 0.9916450512314475, "ci_high": 0.9972575562508265, "n": 2505}, "mean_cer_amount": 0.4752372455665869, "pages": 111, "stp_page_clean": {"value": 1.0, "ci_low": 0.9161983874908382, "ci_high": 1.0, "n": 42}, "page_clustered_ci95": {"accuracy_after_validation": [0.43125424382716054, 0.5842753623188406], "stp_rate": [0.24102249488752556, 0.41216022396073015], "stp_precision": [1.0, 1.0]}}, "by_level": {"clean": {"fields": 750, "recall_found": {"value": 0.6666666666666666, "ci_low": 0.6321546981627659, "ci_high": 0.6994799582425053, "n": 750}, "accuracy_raw": {"value": 0.6506666666666666, "ci_low": 0.615856023271319, "ci_high": 0.683941706119046, "n": 750}, "accuracy_after_validation": {"value": 0.6506666666666666, "ci_low": 0.615856023271319, "ci_high": 0.683941706119046, "n": 750}, "stp_rate": {"value": 0.424, "ci_low": 0.3891066659438928, "ci_high": 0.4596679307353034, "n": 750}, "stp_precision": {"value": 1.0, "ci_low": 0.9880636934442285, "ci_high": 1.0, "n": 318}, "review_rate": {"value": 0.576, "ci_low": 0.5403320692646966, "ci_high": 0.610893334056107, "n": 750}, "delivered_accuracy_assuming_perfect_review": {"value": 1.0, "ci_low": 0.9949039692158141, "ci_high": 1.0, "n": 750}, "delivered_accuracy_assuming_99pct_review": {"value": 0.996, "ci_low": 0.9883059863917272, "ci_high": 0.9986387510703603, "n": 750}, "mean_cer_amount": 0.3481296296296296, "pages": 30, "stp_page_clean": {"value": 1.0, "ci_low": 0.8063865817272802, "ci_high": 1.0, "n": 16}, "page_clustered_ci95": {"accuracy_after_validation": [0.5291473765432099, 0.76795], "stp_rate": [0.25512254901960785, 0.6015172101449274], "stp_precision": [1.0, 1.0]}}, "mild": {"fields": 540, "recall_found": {"value": 0.7592592592592593, "ci_low": 0.721448571653968, "ci_high": 0.7934072245925863, "n": 540}, "accuracy_raw": {"value": 0.7537037037037037, "ci_low": 0.7156555496508344, "ci_high": 0.7881676223904363, "n": 540}, "accuracy_after_validation": {"value": 0.7537037037037037, "ci_low": 0.7156555496508344, "ci_high": 0.7881676223904363, "n": 540}, "stp_rate": {"value": 0.5388888888888889, "ci_low": 0.4967173124778693, "ci_high": 0.5805110569591138, "n": 540}, "stp_precision": {"value": 1.0, "ci_low": 0.9869706310100068, "ci_high": 1.0, "n": 291}, "review_rate": {"value": 0.46111111111111114, "ci_low": 0.41948894304088624, "ci_high": 0.5032826875221307, "n": 540}, "delivered_accuracy_assuming_perfect_review": {"value": 1.0, "ci_low": 0.9929361784754973, "ci_high": 1.0, "n": 540}, "delivered_accuracy_assuming_99pct_review": {"value": 0.9981481481481481, "ci_low": 0.9895856008156955, "ci_high": 0.9996730362580409, "n": 540}, "mean_cer_amount": 0.24609053497942388, "pages": 26, "stp_page_clean": {"value": 1.0, "ci_low": 0.7846829880728186, "ci_high": 1.0, "n": 14}, "page_clustered_ci95": {"accuracy_after_validation": [0.6407323232323232, 0.8630654338549075], "stp_rate": [0.3411513323278029, 0.7272853535353535], "stp_precision": [1.0, 1.0]}}, "moderate": {"fields": 570, "recall_found": {"value": 0.6333333333333333, "ci_low": 0.5930019735569607, "ci_high": 0.6718794850197614, "n": 570}, "accuracy_raw": {"value": 0.6157894736842106, "ci_low": 0.5752088087578492, "ci_high": 0.6548198263219359, "n": 570}, "accuracy_after_validation": {"value": 0.6157894736842106, "ci_low": 0.5752088087578492, "ci_high": 0.6548198263219359, "n": 570}, "stp_rate": {"value": 0.34210526315789475, "ci_low": 0.30433124675301376, "ci_high": 0.38199334177455196, "n": 570}, "stp_precision": {"value": 1.0, "ci_low": 0.9806800991341854, "ci_high": 1.0, "n": 195}, "review_rate": {"value": 0.6578947368421053, "ci_low": 0.6180066582254481, "ci_high": 0.6956687532469862, "n": 570}, "delivered_accuracy_assuming_perfect_review": {"value": 1.0, "ci_low": 0.9933054696627083, "ci_high": 0.9999999999999999, "n": 570}, "delivered_accuracy_assuming_99pct_review": {"value": 0.9964912280701754, "ci_low": 0.9872976445875083, "ci_high": 0.9990372603758124, "n": 570}, "mean_cer_amount": 0.3819569757727652, "pages": 27, "stp_page_clean": {"value": 1.0, "ci_low": 0.7574992425007574, "ci_high": 1.0, "n": 12}, "page_clustered_ci95": {"accuracy_after_validation": [0.4900471401634192, 0.7246219715956558], "stp_rate": [0.18196368243243244, 0.5055995934959349], "stp_precision": [1.0, 1.0]}}, "severe": {"fields": 645, "recall_found": {"value": 0.13333333333333333, "ci_low": 0.10925767174864832, "ci_high": 0.16175084558439562, "n": 645}, "accuracy_raw": {"value": 0.021705426356589147, "ci_low": 0.012972607436444268, "ci_high": 0.03610192785845667, "n": 645}, "accuracy_after_validation": {"value": 0.021705426356589147, "ci_low": 0.012972607436444268, "ci_high": 0.03610192785845667, "n": 645}, "stp_rate": {"value": 0.0, "ci_low": 0.0, "ci_high": 0.0059207054541509044, "n": 645}, "stp_precision": {"value": null, "ci_low": null, "ci_high": null, "n": 0}, "review_rate": {"value": 1.0, "ci_low": 0.994079294545849, "ci_high": 0.9999999999999998, "n": 645}, "delivered_accuracy_assuming_perfect_review": {"value": 1.0, "ci_low": 0.994079294545849, "ci_high": 0.9999999999999998, "n": 645}, "delivered_accuracy_assuming_99pct_review": {"value": 0.9906976744186047, "ci_low": 0.9798548528845249, "ci_high": 0.9957299431581456, "n": 645}, "mean_cer_amount": 0.8973142834770742, "pages": 28, "stp_page_clean": {"value": null, "ci_low": null, "ci_high": null, "n": 0}, "page_clustered_ci95": {"accuracy_after_validation": [0.0014184397163120568, 0.055312695434646626], "stp_rate": [0.0, 0.0], "stp_precision": [null, null]}}}, "by_statement": {"PL": {"fields": 825, "recall_found": {"value": 0.5866666666666667, "ci_low": 0.5527377665801241, "ci_high": 0.6197921836540341, "n": 825}, "accuracy_raw": {"value": 0.52, "ci_low": 0.4858943594760788, "ci_high": 0.5539202444241116, "n": 825}, "accuracy_after_validation": {"value": 0.52, "ci_low": 0.4858943594760788, "ci_high": 0.5539202444241116, "n": 825}, "stp_rate": {"value": 0.35515151515151516, "ci_low": 0.3232355898914652, "ci_high": 0.3884101576192774, "n": 825}, "stp_precision": {"value": 1.0, "ci_low": 0.9870584176880869, "ci_high": 1.0, "n": 293}, "review_rate": {"value": 0.6448484848484849, "ci_low": 0.6115898423807226, "ci_high": 0.6767644101085347, "n": 825}, "delivered_accuracy_assuming_perfect_review": {"value": 1.0, "ci_low": 0.9953650975047583, "ci_high": 0.9999999999999998, "n": 825}, "delivered_accuracy_assuming_99pct_review": {"value": 0.9951515151515151, "ci_low": 0.9876000899525108, "ci_high": 0.9981129823643227, "n": 825}, "mean_cer_amount": 0.4383456644365735, "pages": 55, "stp_page_clean": {"value": 1.0, "ci_low": 0.8513404742740388, "ci_high": 1.0, "n": 22}, "page_clustered_ci95": {"accuracy_after_validation": [0.406, 0.6303333333333333], "stp_rate": [0.2315151515151515, 0.4715151515151515], "stp_precision": [1.0, 1.0]}}, "BS": {"fields": 1680, "recall_found": {"value": 0.5196428571428572, "ci_low": 0.4957341755480308, "ci_high": 0.5434619103545862, "n": 1680}, "accuracy_raw": {"value": 0.49464285714285716, "ci_low": 0.47077418490717954, "ci_high": 0.5185359734830158, "n": 1680}, "accuracy_after_validation": {"value": 0.49464285714285716, "ci_low": 0.47077418490717954, "ci_high": 0.5185359734830158, "n": 1680}, "stp_rate": {"value": 0.30416666666666664, "ci_low": 0.2826346682752013, "ci_high": 0.3265922328774961, "n": 1680}, "stp_precision": {"value": 1.0, "ci_low": 0.992538287504351, "ci_high": 1.0, "n": 511}, "review_rate": {"value": 0.6958333333333333, "ci_low": 0.6734077671225038, "ci_high": 0.7173653317247985, "n": 1680}, "delivered_accuracy_assuming_perfect_review": {"value": 1.0, "ci_low": 0.9977185502484317, "ci_high": 0.9999999999999999, "n": 1680}, "delivered_accuracy_assuming_99pct_review": {"value": 0.9952380952380953, "ci_low": 0.9906313250951072, "ci_high": 0.9975851437223872, "n": 1680}, "mean_cer_amount": 0.49335364701436124, "pages": 56, "stp_page_clean": {"value": 1.0, "ci_low": 0.8388698745050667, "ci_high": 1.0, "n": 20}, "page_clustered_ci95": {"accuracy_after_validation": [0.3910565476190476, 0.5934672619047618], "stp_rate": [0.19389880952380953, 0.4166666666666667], "stp_precision": [1.0, 1.0]}}}, "calibration": {"ece_raw_ocr_confidence": 0.05402213645702307, "ece_calibrated": 0.02937979800970893}, "ablation_confidence_only_routing": {"rule": "auto-accept when raw OCR confidence >= 1.010, the lowest threshold meeting the same 99.5% precision target on the calibration half; no arithmetic checks", "threshold": 1.01, "stp_rate": {"value": 0.0, "ci_low": 0.0, "ci_high": 0.002822958968920409, "n": 1357}, "stp_precision": {"value": null, "ci_low": null, "ci_high": null, "n": 0}, "wrong_values_accepted": 0}, "by_layout": {"A": {"fields": 1215, "recall_found": {"value": 0.7539094650205761, "ci_low": 0.7289140947109619, "ci_high": 0.7773042686924531, "n": 1215}, "accuracy_raw": {"value": 0.7152263374485597, "ci_low": 0.6892019617907272, "ci_high": 0.7398939929256199, "n": 1215}, "accuracy_after_validation": {"value": 0.7152263374485597, "ci_low": 0.6892019617907272, "ci_high": 0.7398939929256199, "n": 1215}, "stp_rate": {"value": 0.6477366255144033, "ci_low": 0.6204496180581447, "ci_high": 0.6740923470339557, "n": 1215}, "stp_precision": {"value": 1.0, "ci_low": 0.9951423900816546, "ci_high": 0.9999999999999999, "n": 787}, "review_rate": {"value": 0.3522633744855967, "ci_low": 0.32590765296604407, "ci_high": 0.3795503819418552, "n": 1215}, "delivered_accuracy_assuming_perfect_review": {"value": 1.0, "ci_low": 0.9968481548381675, "ci_high": 0.9999999999999999, "n": 1215}, "delivered_accuracy_assuming_99pct_review": {"value": 0.9975308641975309, "ci_low": 0.9927655092361145, "ci_high": 0.9991599386645806, "n": 1215}, "mean_cer_amount": 0.2509866151224176, "pages": 54, "stp_page_clean": {"value": 1.0, "ci_low": 0.90818706741616, "ci_high": 0.9999999999999999, "n": 38}, "page_clustered_ci95": {"accuracy_after_validation": [0.5929706288192391, 0.8260368493295323], "stp_rate": [0.5172837552742616, 0.7733421052631578], "stp_precision": [1.0, 1.0]}}, "B": {"fields": 1290, "recall_found": {"value": 0.34186046511627904, "ci_low": 0.3164794057135584, "ci_high": 0.36818060212665943, "n": 1290}, "accuracy_raw": {"value": 0.30310077519379847, "ci_low": 0.27863513149406205, "ci_high": 0.32873566258150344, "n": 1290}, "accuracy_after_validation": {"value": 0.30310077519379847, "ci_low": 0.27863513149406205, "ci_high": 0.32873566258150344, "n": 1290}, "stp_rate": {"value": 0.01317829457364341, "ci_low": 0.00824393382399152, "ci_high": 0.021003541291973217, "n": 1290}, "stp_precision": {"value": 1.0, "ci_low": 0.8156763396284354, "ci_high": 1.0, "n": 17}, "review_rate": {"value": 0.9868217054263566, "ci_low": 0.9789964587080269, "ci_high": 0.9917560661760085, "n": 1290}, "delivered_accuracy_assuming_perfect_review": {"value": 1.0, "ci_low": 0.9970308575640173, "ci_high": 1.0, "n": 1290}, "delivered_accuracy_assuming_99pct_review": {"value": 0.9930232558139535, "ci_low": 0.9867935523444636, "ci_high": 0.996325246741916, "n": 1290}, "mean_cer_amount": 0.686450048659351, "pages": 57, "stp_page_clean": {"value": 1.0, "ci_low": 0.5100999795960008, "ci_high": 1.0, "n": 4}, "page_clustered_ci95": {"accuracy_after_validation": [0.24, 0.3674176245210728], "stp_rate": [0.0021488575268817207, 0.02837095658190624], "stp_precision": [1.0, 1.0]}}}, "documents": {"unit_detected_supported_tiers": {"value": 1.0, "ci_low": 0.9557631365612795, "ci_high": 1.0, "n": 83}, "severe_pages_flagged_for_rescan": {"value": 0.8928571428571429, "ci_low": 0.7280377463234293, "ci_high": 0.9628823079452005, "n": 28}, "unit_detected_correctly": {"value": 0.7927927927927928, "ci_low": 0.7082251592960477, "ci_high": 0.8577718313414914, "n": 111}, "all_fields_correct": {"value": 0.3153153153153153, "ci_low": 0.2362875116059382, "ci_high": 0.40669900199192177, "n": 111}, "fully_straight_through_and_correct": {"value": 0.21621621621621623, "ci_low": 0.1498210872799431, "ci_high": 0.30159721410213447, "n": 111}, "mean_ocr_seconds_per_page": 5.641617864164679, "genuine_documents_flagged_by_validation": {"value": 0.3142857142857143, "ci_low": 0.18550658059782457, "ci_high": 0.47980071879251973, "n": 35}}, "error_taxonomy_test": {"missing_row": 1148, "wrong_value_flagged_for_review": 97, "wrong_value_auto": 0}, "latency": {"engine_hardware": "CPU (ONNX Runtime), single process", "clean": 6.6496280000040615, "mild": 7.113462466668959, "moderate": 7.098015933316977, "severe": 8.128422933339607, "mean_seconds_per_page": 7.247382333332401, "p95_seconds_per_page": 10.81464192502317}, "identity_preserving_errors": {"swap": {"pages": 20, "stopped_by_routing": {"value": 0.85, "ci_low": 0.6395767041130426, "ci_high": 0.9476322080405041, "n": 20}, "wrong_figures_would_pass_straight_through": {"value": 0.15, "ci_low": 0.05236779195949584, "ci_high": 0.36042329588695743, "n": 20}}, "shift": {"pages": 20, "stopped_by_routing": {"value": 0.6, "ci_low": 0.3865779423152061, "ci_high": 0.7811960325858074, "n": 20}, "wrong_figures_would_pass_straight_through": {"value": 0.4, "ci_low": 0.21880396741419272, "ci_high": 0.613422057684794, "n": 20}}}, "tamper_detection": {"inconsistent": {"documents": 40, "flagged_for_review": {"value": 0.95, "ci_low": 0.834958291820748, "ci_high": 0.9861796228538989, "n": 40}, "tampered_cell_pinpointed": {"value": 0.5, "ci_low": 0.35199278797099753, "ci_high": 0.6480072120290025, "n": 40}}, "consistent": {"documents": 24, "flagged_for_review": {"value": 0.7083333333333334, "ci_low": 0.508319363412903, "ci_high": 0.8508553966583573, "n": 24}, "tampered_cell_pinpointed": {"value": 0.041666666666666664, "ci_low": 0.007393265354805126, "ci_high": 0.20242226248842232, "n": 24}}}, "wall_seconds": 2349.1}</script>
+<script>
+(function () {
+  var R = JSON.parse(document.getElementById("data").textContent);
+  var $ = function (id) { return document.getElementById(id); };
+  var pct = function (x, d) { return (100 * x).toFixed(d === undefined ? 1 : d) + "%"; };
+  var LV = ["clean", "mild", "moderate", "severe"];
+  var NAMES = { clean: "Clean", mild: "Mild", moderate: "Moderate", severe: "Severe" };
+  var o = R.overall, bl = R.by_level;
+
+  $("meta").innerHTML = ["engine " + R.engine, R.pipeline_version, R.corpus.documents + " pages", R.corpus.test_fields + " test fields", "seed " + R.seed]
+    .map(function (t) { return "<span>" + t + "</span>"; }).join("");
+  $("headline").textContent = "Of " + o.stp_rate.n.toLocaleString() + " figures on unseen pages, " + pct(o.stp_rate.value, 0) +
+    " passed straight through and " + (o.stp_precision.value === 1 ? "none" : pct(1 - o.stp_precision.value, 2)) + " of those were wrong.";
+  $("lede").textContent = "A synthetic corpus of Schedule III statements, rendered in two layouts at four scan qualities and read by an off-the-shelf recogniser. Every figure has exact ground truth. Calibration used one half of the obligors and every number here comes from the other half. The safety property holds; coverage does not yet meet the release gate.";
+
+  var lay = R.by_layout || {};
+  $("verdict").innerHTML =
+    '<span class="pill">straight-through precision ' + pct(o.stp_precision.value, 2) + " (n=" + o.stp_precision.n + "), upper bound on error " + pct(1 - o.stp_precision.ci_low, 2) + "</span>" +
+    '<span class="pill bad">release gate: FAILED on coverage (clean tier ' + pct(bl.clean.accuracy_after_validation.value, 0) + " correct vs 99% required)</span>" +
+    (lay.A && lay.B ? '<span class="pill warn">layout A ' + pct(lay.A.accuracy_after_validation.value, 0) + " correct, layout B " + pct(lay.B.accuracy_after_validation.value, 0) + "</span>" : "") +
+    '<span class="pill bad">severe pages ' + pct(bl.severe.stp_rate.value, 1) + " straight through: rescan</span>";
+
+  /* ---- chart 1: grouped horizontal bars by tier, page-clustered CI whiskers on accuracy ---- */
+  var series = [
+    { key: "recall_found", label: "Figure located", color: "var(--bar-3)" },
+    { key: "accuracy_after_validation", label: "Figure correct", color: "var(--bar-2)" },
+    { key: "stp_rate", label: "Passed straight through", color: "var(--bar)" }
+  ];
+  $("leg1").innerHTML = series.map(function (s) { return '<span><i style="background:' + s.color + '"></i>' + s.label + "</span>"; }).join("");
+  var W = 560, left = 76, right = 44, top = 12, rowH = 66, bh = 14, gap = 4, plot = W - left - right;
+  var svg = '';
+  [0, 25, 50, 75, 100].forEach(function (t) {
+    var x = left + plot * t / 100;
+    svg += '<line x1="' + x + '" x2="' + x + '" y1="' + top + '" y2="' + (top + rowH * 4) + '" stroke="var(--grid)"/>';
+    svg += '<text class="m" x="' + x + '" y="' + (top + rowH * 4 + 16) + '" text-anchor="middle">' + t + '%</text>';
+  });
+  LV.forEach(function (lv, i) {
+    var y0 = top + i * rowH + 4;
+    svg += '<text x="' + (left - 10) + '" y="' + (y0 + 26) + '" text-anchor="end">' + NAMES[lv] + "</text>";
+    series.forEach(function (s, j) {
+      var v = bl[lv][s.key].value, y = y0 + j * (bh + gap), w = plot * v;
+      svg += '<rect x="' + left + '" y="' + y + '" width="' + Math.max(w, 1) + '" height="' + bh + '" rx="2" fill="' + s.color + '"/>';
+      var txt = pct(v, v === 1 || v === 0 ? 0 : 1);
+      svg += '<text class="m" x="' + (left + w + 6) + '" y="' + (y + 11) + '">' + txt + "</text>";
+      var ci = bl[lv].page_clustered_ci95 && s.key === "accuracy_after_validation" ? bl[lv].page_clustered_ci95.accuracy_after_validation : null;
+      if (ci && ci.length === 2 && ci[0] === ci[0]) {
+        var xa = left + plot * ci[0], xb = left + plot * ci[1], yc = y + bh / 2;
+        svg += '<line x1="' + xa + '" x2="' + xb + '" y1="' + yc + '" y2="' + yc + '" stroke="var(--ink)" stroke-width="1.2"/>' +
+               '<line x1="' + xa + '" x2="' + xa + '" y1="' + (yc - 4) + '" y2="' + (yc + 4) + '" stroke="var(--ink)" stroke-width="1.2"/>' +
+               '<line x1="' + xb + '" x2="' + xb + '" y1="' + (yc - 4) + '" y2="' + (yc + 4) + '" stroke="var(--ink)" stroke-width="1.2"/>';
+      }
+    });
+  });
+  $("c1").setAttribute("viewBox", "0 0 " + W + " " + (top + rowH * 4 + 28));
+  $("c1").innerHTML = svg;
+  $("tiernote").textContent = "Pages are graded from clean to severe. The whiskers are 95% intervals that resample whole pages, because figures on one page share the same scan damage. Moderate pages are readable but rows slip, so the platform sends more of them to a reviewer. Severe pages are rejected for rescan instead of being read badly.";
+
+  var rows = '<tr><th>Scan quality</th><th>Pages</th><th>Located</th><th>Correct</th><th>Straight through</th><th>Wrong among straight through</th><th>Reviewer queue</th></tr>';
+  LV.concat(["overall"]).forEach(function (lv) {
+    var b = lv === "overall" ? o : bl[lv];
+    var wrong = b.stp_precision && b.stp_precision.n ? Math.round((1 - b.stp_precision.value) * b.stp_precision.n) : 0;
+    rows += "<tr><td>" + (lv === "overall" ? "<strong>All tiers</strong>" : NAMES[lv]) + "</td><td>" + (b.pages || "") + "</td><td>" + pct(b.recall_found.value) +
+      "</td><td>" + pct(b.accuracy_after_validation.value) + "</td><td>" + pct(b.stp_rate.value) + " <small>n=" + b.stp_rate.n + "</small></td><td>" +
+      (b.stp_precision && b.stp_precision.n ? wrong + " of " + b.stp_precision.n : "none passed") + "</td><td>" + pct(b.review_rate.value) + "</td></tr>";
+  });
+  $("tiertable").innerHTML = rows;
+
+  /* ---- layouts ---- */
+  if (lay.A && lay.B) {
+    $("laynote").textContent = "Layout B adds a notes column and labels worded independently of the extractor's alias table. Almost every miss is a row whose label the extractor did not recognise; it is left for a reviewer rather than guessed, which is why precision is unaffected while coverage collapses. This is the weakness the harder corpus was built to expose.";
+    $("laytable").innerHTML = '<tr><th>Layout</th><th>Pages</th><th>Located</th><th>Correct</th><th>Straight through</th><th>Wrong among straight through</th></tr>' +
+      ["A", "B"].map(function (k) {
+        var b = lay[k];
+        var wrong = b.stp_precision && b.stp_precision.n ? Math.round((1 - b.stp_precision.value) * b.stp_precision.n) : 0;
+        return "<tr><td>" + k + "</td><td>" + b.pages + "</td><td>" + pct(b.recall_found.value) + "</td><td>" + pct(b.accuracy_after_validation.value) + "</td><td>" + pct(b.stp_rate.value) + "</td><td>" + wrong + " of " + (b.stp_precision ? b.stp_precision.n : 0) + "</td></tr>";
+      }).join("");
+  }
+
+  /* ---- identity-preserving errors ---- */
+  var ip = R.identity_preserving_errors;
+  if (ip) {
+    $("idnote").textContent = "Swapping two sibling figures, or shifting a column by one row, keeps every total correct. A continuity check against the prior period catches most of them. The rest would pass straight through. This residual risk is measured here and is not claimed to be zero.";
+    $("idtable").innerHTML = '<tr><th>Error</th><th>Pages</th><th>Stopped</th><th>Would pass straight through</th></tr>' +
+      Object.keys(ip).map(function (k) {
+        var t = ip[k];
+        return "<tr><td>" + k + "</td><td>" + t.pages + "</td><td>" + pct(t.stopped_by_routing.value, 0) + "</td><td>" + pct(t.wrong_figures_would_pass_straight_through.value, 0) +
+          " <small>[" + pct(t.wrong_figures_would_pass_straight_through.ci_low, 0) + ", " + pct(t.wrong_figures_would_pass_straight_through.ci_high, 0) + "]</small></td></tr>";
+      }).join("");
+  }
+
+  /* ---- chart 2: ablation ---- */
+  var ab = R.ablation_confidence_only_routing;
+  var items = [
+    { label: "Confidence only", sub: "straight-through rate " + pct(ab.stp_rate.value, 1) + " at the same precision target", v: ab.stp_rate.value, n: ab.stp_rate.n, color: "var(--bad)" },
+    { label: "With arithmetic checks", sub: "accepted only when a statement total confirms it; " + pct(o.stp_precision.value, 2) + " correct", v: o.stp_rate.value, n: o.stp_rate.n, color: "var(--bar)" }
+  ];
+  $("leg2").innerHTML = "<span>Share of figures accepted without review, both rules held to the same 99.5% precision target</span>";
+  var s2 = "", pl = 150, pw = 360;
+  [0, 25, 50, 75, 100].forEach(function (t) {
+    var x = pl + pw * t / 100;
+    s2 += '<line x1="' + x + '" x2="' + x + '" y1="8" y2="132" stroke="var(--grid)"/><text class="m" x="' + x + '" y="150" text-anchor="middle">' + t + "%</text>";
+  });
+  items.forEach(function (it, i) {
+    var y = 18 + i * 56, w = pw * it.v;
+    s2 += '<text x="' + (pl - 10) + '" y="' + (y + 12) + '" text-anchor="end">' + it.label + "</text>";
+    s2 += '<rect x="' + pl + '" y="' + y + '" width="' + Math.max(w, 1) + '" height="22" rx="2" fill="' + it.color + '"/>';
+    s2 += '<text class="m" x="' + (pl + w + 6) + '" y="' + (y + 15) + '">' + pct(it.v, 1) + "</text>";
+    s2 += '<text class="m" x="' + (pl) + '" y="' + (y + 38) + '">' + it.sub + " (" + it.n + " figures)</text>";
+  });
+  $("c2").innerHTML = s2;
+  $("ablnote").textContent = "A recogniser's own confidence says the characters are crisp, not that a label was paired with the right number. On this corpus a confidence threshold tuned to the same 99.5% precision target on the calibration half never clears (the engine is confidently wrong too often), so it accepts nothing. The arithmetic checks are what make straight-through processing possible at all.";
+
+  /* ---- tamper ---- */
+  var td = R.tamper_detection;
+  $("tampernote").textContent = "We edited one figure on a page and re-rendered it, then checked whether the platform noticed. An edit that breaks the books is caught and the cell is pointed out. A forgery that adjusts every dependent total is arithmetically consistent, so arithmetic cannot see it. That gap is real; closing it needs cross-document checks against GST and bank data, and image forensics.";
+  $("tampertable").innerHTML = '<tr><th>Edit type</th><th>Pages</th><th>Flagged</th><th>Cell pinpointed</th></tr>' +
+    ["inconsistent", "consistent"].map(function (k) {
+      var t = td[k];
+      return "<tr><td>" + (k === "inconsistent" ? "One figure changed" : "Totals adjusted to match") + "</td><td>" + t.documents + "</td><td>" + pct(t.flagged_for_review.value, 0) +
+        " <small>[" + pct(t.flagged_for_review.ci_low, 0) + ", " + pct(t.flagged_for_review.ci_high, 0) + "]</small></td><td>" + pct(t.tampered_cell_pinpointed.value, 0) + "</td></tr>";
+    }).join("");
+
+  /* ---- misc ---- */
+  var L = R.latency, cal = R.calibration, dc = R.documents;
+  $("misc").innerHTML = '<tr><th>Measure</th><th>Value</th></tr>' +
+    "<tr><td>Seconds per page, one CPU process</td><td>" + L.mean_seconds_per_page.toFixed(1) + " mean, " + L.p95_seconds_per_page.toFixed(1) + " p95</td></tr>" +
+    "<tr><td>Calibration error, engine confidence alone</td><td>" + cal.ece_raw_ocr_confidence.toFixed(3) + "</td></tr>" +
+    "<tr><td>Calibration error, calibrated score</td><td>" + cal.ece_calibrated.toFixed(3) + " <small>limit 0.050</small></td></tr>" +
+    "<tr><td>Unit header read correctly, supported tiers</td><td>" + pct(dc.unit_detected_supported_tiers.value, 1) + " <small>n=" + dc.unit_detected_supported_tiers.n + "</small></td></tr>" +
+    "<tr><td>Severe pages flagged for rescan</td><td>" + pct(dc.severe_pages_flagged_for_rescan.value, 0) + " <small>n=" + dc.severe_pages_flagged_for_rescan.n + "</small></td></tr>" +
+    "<tr><td>Genuine pages wrongly flagged by the arithmetic check</td><td>" + pct(dc.genuine_documents_flagged_by_validation.value, 1) + " <small>n=" + dc.genuine_documents_flagged_by_validation.n + "</small></td></tr>";
+
+  $("caveats").innerHTML = [
+    "The pages are synthetic: one renderer, a handful of fonts, two statement layouts. Real scans vary far more. Re-run this report on consented real documents before quoting it to anyone.",
+    "Damage is simulated (skew, blur, noise, compression). Stamps, handwriting, folds and photographed pages are not covered.",
+    "Only financial statements are measured. Stock statements, certificates, deeds and Indic scripts are not.",
+    "The release thresholds were fixed from the build guide before the first run. Thresholds were amended twice after seeing results (v2, v3); the history is in ADR 0003 and <code>ocr/eval/thresholds.yaml</code>.",
+    "Straight-through precision of 100% is a bound, not a promise. The interval is the honest statement."
+  ].map(function (t) { return "<li>" + t + "</li>"; }).join("");
+})();
+</script>

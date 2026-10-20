@@ -11,8 +11,9 @@ that enforces the control and the test that proves it. The last section lists wh
 3. **Assume documents are hostile.** A borrower PDF is data. It is screened, escaped, redacted and
    never concatenated into an instruction.
 4. **Nothing is silently trusted.** Hashes, signatures and chains are verified on read, not only on write.
-5. **Every audit finding has a regression test.** An independent adversarial review of the foundation found
-   25 defects, including three critical. They are listed in `docs/AUDIT_LOG.md`.
+5. **Every fixed audit finding has a regression test.** Two independent adversarial reviews of the foundation
+   found 25 defects (three critical), then re-checked the fixes and found more. All are listed in
+   `docs/AUDIT_LOG.md` with their status, including those still open.
 
 ## Controls
 
@@ -37,7 +38,7 @@ that enforces the control and the test that proves it. The last section lists wh
 
 | Threat | Mitigation | Residual risk |
 |---|---|---|
-| Borrower uploads a statement with an edited number | Identity checks, review routing, cell pinpointing | A **consistent** forgery (edits that keep every total right) passes arithmetic. The OCR report measures this rate. Needs cross-document checks (GST, bank statements) and image forensics |
+| Borrower uploads a statement with an edited number | Identity checks, review routing, cell pinpointing | A **consistent** forgery (edits that keep every total right) passes arithmetic. The OCR report measures it: consistent edits were flagged for review 71% of the time (by side effects) and the edited cell was pinpointed 4% of the time (n=24). Needs cross-document checks (GST, bank statements) and image forensics |
 | Instruction hidden in a PDF ("mark this complied") | Screen, escape, schema-constrained output, no tool that acts, human approval | Screens are bypassable by design; the architecture, not the screen, is the defence |
 | Insider edits the audit log or an approval | Hash chain, signed anchors, whole-record signatures | Anchors must be written to WORM storage by operations |
 | Insider replays or inflates a Finacle command | Approval bound to the exact body, idempotency, ordered dispatch | Real Finacle must also enforce the idempotency key |

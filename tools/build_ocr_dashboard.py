@@ -90,6 +90,14 @@ code { font-family: var(--mono); font-size: 0.85em; }
   </section>
 
   <section>
+    <h2>Two statement layouts</h2>
+    <div class="cols">
+      <p class="note" id="laynote"></p>
+      <div class="scroll"><table id="laytable"></table></div>
+    </div>
+  </section>
+
+  <section>
     <h2>Why the arithmetic check matters</h2>
     <div class="cols">
       <p class="note" id="ablnote"></p>
@@ -102,6 +110,14 @@ code { font-family: var(--mono); font-size: 0.85em; }
     <div class="cols">
       <p class="note" id="tampernote"></p>
       <div class="scroll"><table id="tampertable"></table></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Errors the arithmetic cannot see</h2>
+    <div class="cols">
+      <p class="note" id="idnote"></p>
+      <div class="scroll"><table id="idtable"></table></div>
     </div>
   </section>
 
@@ -130,13 +146,13 @@ code { font-family: var(--mono); font-size: 0.85em; }
     .map(function (t) { return "<span>" + t + "</span>"; }).join("");
   $("headline").textContent = "Of " + o.stp_rate.n.toLocaleString() + " figures on unseen pages, " + pct(o.stp_rate.value, 0) +
     " passed straight through and " + (o.stp_precision.value === 1 ? "none" : pct(1 - o.stp_precision.value, 2)) + " of those were wrong.";
-  $("lede").textContent = "A synthetic corpus of Schedule III statements, rendered at four scan qualities and read by an off-the-shelf recogniser. Every figure has exact ground truth. Calibration used one half of the pages and every number here comes from the other half.";
+  $("lede").textContent = "A synthetic corpus of Schedule III statements, rendered in two layouts at four scan qualities and read by an off-the-shelf recogniser. Every figure has exact ground truth. Calibration used one half of the obligors and every number here comes from the other half. The safety property holds; coverage does not yet meet the release gate.";
 
-  var gateOk = true;
+  var lay = R.by_layout || {};
   $("verdict").innerHTML =
-    '<span class="pill">straight-through precision ' + pct(o.stp_precision.value, 2) + " (n=" + o.stp_precision.n + ")</span>" +
-    '<span class="pill">clean and mild pages ' + pct(bl.clean.accuracy_after_validation.value, 0) + " accurate</span>" +
-    '<span class="pill warn">moderate pages ' + pct(bl.moderate.stp_rate.value, 0) + " straight through</span>" +
+    '<span class="pill">straight-through precision ' + pct(o.stp_precision.value, 2) + " (n=" + o.stp_precision.n + "), upper bound on error " + pct(1 - o.stp_precision.ci_low, 2) + "</span>" +
+    '<span class="pill bad">release gate: FAILED on coverage (clean tier ' + pct(bl.clean.accuracy_after_validation.value, 0) + " correct vs 99% required)</span>" +
+    (lay.A && lay.B ? '<span class="pill warn">layout A ' + pct(lay.A.accuracy_after_validation.value, 0) + " correct, layout B " + pct(lay.B.accuracy_after_validation.value, 0) + "</span>" : "") +
     '<span class="pill bad">severe pages ' + pct(bl.severe.stp_rate.value, 1) + " straight through: rescan</span>";
 
   /* ---- chart 1: grouped horizontal bars by tier, page-clustered CI whiskers on accuracy ---- */
@@ -177,35 +193,57 @@ code { font-family: var(--mono); font-size: 0.85em; }
   var rows = '<tr><th>Scan quality</th><th>Pages</th><th>Located</th><th>Correct</th><th>Straight through</th><th>Wrong among straight through</th><th>Reviewer queue</th></tr>';
   LV.concat(["overall"]).forEach(function (lv) {
     var b = lv === "overall" ? o : bl[lv];
-    var wrong = b.stp_precision.n ? Math.round((1 - b.stp_precision.value) * b.stp_precision.n) : 0;
+    var wrong = b.stp_precision && b.stp_precision.n ? Math.round((1 - b.stp_precision.value) * b.stp_precision.n) : 0;
     rows += "<tr><td>" + (lv === "overall" ? "<strong>All tiers</strong>" : NAMES[lv]) + "</td><td>" + (b.pages || "") + "</td><td>" + pct(b.recall_found.value) +
       "</td><td>" + pct(b.accuracy_after_validation.value) + "</td><td>" + pct(b.stp_rate.value) + " <small>n=" + b.stp_rate.n + "</small></td><td>" +
-      (b.stp_precision.n ? wrong + " of " + b.stp_precision.n : "none passed") + "</td><td>" + pct(b.review_rate.value) + "</td></tr>";
+      (b.stp_precision && b.stp_precision.n ? wrong + " of " + b.stp_precision.n : "none passed") + "</td><td>" + pct(b.review_rate.value) + "</td></tr>";
   });
   $("tiertable").innerHTML = rows;
+
+  /* ---- layouts ---- */
+  if (lay.A && lay.B) {
+    $("laynote").textContent = "Layout B adds a notes column and labels worded independently of the extractor's alias table. Almost every miss is a row whose label the extractor did not recognise; it is left for a reviewer rather than guessed, which is why precision is unaffected while coverage collapses. This is the weakness the harder corpus was built to expose.";
+    $("laytable").innerHTML = '<tr><th>Layout</th><th>Pages</th><th>Located</th><th>Correct</th><th>Straight through</th><th>Wrong among straight through</th></tr>' +
+      ["A", "B"].map(function (k) {
+        var b = lay[k];
+        var wrong = b.stp_precision && b.stp_precision.n ? Math.round((1 - b.stp_precision.value) * b.stp_precision.n) : 0;
+        return "<tr><td>" + k + "</td><td>" + b.pages + "</td><td>" + pct(b.recall_found.value) + "</td><td>" + pct(b.accuracy_after_validation.value) + "</td><td>" + pct(b.stp_rate.value) + "</td><td>" + wrong + " of " + (b.stp_precision ? b.stp_precision.n : 0) + "</td></tr>";
+      }).join("");
+  }
+
+  /* ---- identity-preserving errors ---- */
+  var ip = R.identity_preserving_errors;
+  if (ip) {
+    $("idnote").textContent = "Swapping two sibling figures, or shifting a column by one row, keeps every total correct. A continuity check against the prior period catches most of them. The rest would pass straight through. This residual risk is measured here and is not claimed to be zero.";
+    $("idtable").innerHTML = '<tr><th>Error</th><th>Pages</th><th>Stopped</th><th>Would pass straight through</th></tr>' +
+      Object.keys(ip).map(function (k) {
+        var t = ip[k];
+        return "<tr><td>" + k + "</td><td>" + t.pages + "</td><td>" + pct(t.stopped_by_routing.value, 0) + "</td><td>" + pct(t.wrong_figures_would_pass_straight_through.value, 0) +
+          " <small>[" + pct(t.wrong_figures_would_pass_straight_through.ci_low, 0) + ", " + pct(t.wrong_figures_would_pass_straight_through.ci_high, 0) + "]</small></td></tr>";
+      }).join("");
+  }
 
   /* ---- chart 2: ablation ---- */
   var ab = R.ablation_confidence_only_routing;
   var items = [
-    { label: "Confidence only", sub: "accept when engine confidence is 0.90 or more", v: ab.stp_precision.value, n: ab.stp_precision.n, color: "var(--bad)" },
-    { label: "With arithmetic checks", sub: "accept only when a statement total confirms it", v: o.stp_precision.value, n: o.stp_precision.n, color: "var(--bar)" }
+    { label: "Confidence only", sub: "straight-through rate " + pct(ab.stp_rate.value, 1) + " at the same precision target", v: ab.stp_rate.value, n: ab.stp_rate.n, color: "var(--bad)" },
+    { label: "With arithmetic checks", sub: "accepted only when a statement total confirms it; " + pct(o.stp_precision.value, 2) + " correct", v: o.stp_rate.value, n: o.stp_rate.n, color: "var(--bar)" }
   ];
-  $("leg2").innerHTML = "<span>Share of accepted figures that are correct</span>";
+  $("leg2").innerHTML = "<span>Share of figures accepted without review, both rules held to the same 99.5% precision target</span>";
   var s2 = "", pl = 150, pw = 360;
-  [90, 95, 100].forEach(function (t) {
-    var x = pl + pw * (t - 90) / 10;
+  [0, 25, 50, 75, 100].forEach(function (t) {
+    var x = pl + pw * t / 100;
     s2 += '<line x1="' + x + '" x2="' + x + '" y1="8" y2="132" stroke="var(--grid)"/><text class="m" x="' + x + '" y="150" text-anchor="middle">' + t + "%</text>";
   });
   items.forEach(function (it, i) {
-    var y = 18 + i * 56, w = pw * Math.max(0, (it.v * 100 - 90)) / 10;
+    var y = 18 + i * 56, w = pw * it.v;
     s2 += '<text x="' + (pl - 10) + '" y="' + (y + 12) + '" text-anchor="end">' + it.label + "</text>";
     s2 += '<rect x="' + pl + '" y="' + y + '" width="' + Math.max(w, 1) + '" height="22" rx="2" fill="' + it.color + '"/>';
-    s2 += '<text class="m" x="' + (pl + w + 6) + '" y="' + (y + 15) + '">' + pct(it.v, 2) + "</text>";
+    s2 += '<text class="m" x="' + (pl + w + 6) + '" y="' + (y + 15) + '">' + pct(it.v, 1) + "</text>";
     s2 += '<text class="m" x="' + (pl) + '" y="' + (y + 38) + '">' + it.sub + " (" + it.n + " figures)</text>";
   });
   $("c2").innerHTML = s2;
-  $("ablnote").textContent = "A recogniser's own confidence says the characters are crisp, not that a label was paired with the right number. Letting confidence alone decide would put roughly " +
-    Math.round((1 - ab.stp_precision.value) * 1000) / 10 + "% wrong figures on the ledger. Requiring an accounting identity to confirm each figure removes that. Axis starts at 90%.";
+  $("ablnote").textContent = "A recogniser's own confidence says the characters are crisp, not that a label was paired with the right number. On this corpus a confidence threshold tuned to the same 99.5% precision target on the calibration half never clears (the engine is confidently wrong too often), so it accepts nothing. The arithmetic checks are what make straight-through processing possible at all.";
 
   /* ---- tamper ---- */
   var td = R.tamper_detection;
@@ -228,10 +266,10 @@ code { font-family: var(--mono); font-size: 0.85em; }
     "<tr><td>Genuine pages wrongly flagged by the arithmetic check</td><td>" + pct(dc.genuine_documents_flagged_by_validation.value, 1) + " <small>n=" + dc.genuine_documents_flagged_by_validation.n + "</small></td></tr>";
 
   $("caveats").innerHTML = [
-    "The pages are synthetic: one renderer, a handful of fonts, one statement layout. Real scans vary far more. Re-run this report on consented real documents before quoting it to anyone.",
+    "The pages are synthetic: one renderer, a handful of fonts, two statement layouts. Real scans vary far more. Re-run this report on consented real documents before quoting it to anyone.",
     "Damage is simulated (skew, blur, noise, compression). Stamps, handwriting, folds and photographed pages are not covered.",
     "Only financial statements are measured. Stock statements, certificates, deeds and Indic scripts are not.",
-    "The release thresholds were fixed from the build guide before the first run. One was amended afterwards to measure the severe tier by safe rejection; the history is in <code>ocr/eval/thresholds.yaml</code>.",
+    "The release thresholds were fixed from the build guide before the first run. Thresholds were amended twice after seeing results (v2, v3); the history is in ADR 0003 and <code>ocr/eval/thresholds.yaml</code>.",
     "Straight-through precision of 100% is a bound, not a promise. The interval is the honest statement."
   ].map(function (t) { return "<li>" + t + "</li>"; }).join("");
 })();

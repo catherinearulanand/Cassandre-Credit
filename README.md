@@ -23,7 +23,7 @@ python -m tools.pricing_model           # cost-to-serve and price corridor (plac
 | Covenant DSL and test engine | Built | 13,540 simulated tests agree with an independent calculator |
 | CTS, limit tree, drawing power, drawdown gate, cases | Built | simulation report, property tests |
 | Sanction Compiler | Grammar path built; **LLM path for negotiated agreements not built or measured** | `docs/LLM_DECISION.md` |
-| OCR pipeline for financial statements | Built and gated on synthetic pages | `reports/ocr_accuracy.json` |
+| OCR pipeline for financial statements | Built; **v3 release gate currently FAILS on coverage** (zero wrong figures auto-accepted, but layout B is read at 30%). See `docs/OCR_ACCURACY.md` | `reports/ocr_accuracy.json` |
 | EWS and breach forecast models | Built; validated out of time on **synthetic** data only | `reports/simulation_report.json` |
 | Postgres, Kafka, Neo4j, Temporal, Feast adapters; UI; real Finacle | **Not built** (ports and in-memory adapters exist, ADR 0002) | |
 | Monitoring calendar, SMA service, RFA, documentation agent, review, recovery, closure workflows | **Rules and clocks exist; services and workflows not built** | |
