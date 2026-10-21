@@ -17,6 +17,7 @@ import io
 import random
 from dataclasses import dataclass, field
 from decimal import Decimal
+from pathlib import Path
 
 import numpy as np
 from domain.coa import BY_CODE
@@ -132,7 +133,15 @@ ALT_LABELS = {
     "current_assets": "Total assets realisable within a year",
     "total_assets": "TOTAL ASSETS",
 }
-FONT_CANDIDATES = ["arial.ttf", "calibri.ttf", "times.ttf", "verdana.ttf", "tahoma.ttf", "cour.ttf"]
+FONT_DIR = Path(__file__).with_name("fonts")  # bundled: identical pixels on every machine
+FONT_CANDIDATES = [
+    "LiberationSans-Regular.ttf",
+    "LiberationSerif-Regular.ttf",
+    "LiberationMono-Regular.ttf",
+    "DejaVuSans.ttf",
+    "DejaVuSerif.ttf",
+    "DejaVuSansMono.ttf",
+]
 
 
 @dataclass
@@ -158,10 +167,8 @@ class RenderedPage:
 
 
 def _font(name: str, size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
-    try:
-        return ImageFont.truetype(name, size)
-    except OSError:
-        return ImageFont.load_default()
+    # No silent fallback: a missing font would change every page and invalidate the gate.
+    return ImageFont.truetype(str(FONT_DIR / name), size)
 
 
 def _fmt(units: int, unit_name: str) -> str:

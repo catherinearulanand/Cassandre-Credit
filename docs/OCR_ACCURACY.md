@@ -6,6 +6,17 @@ Written for the bank's credit-risk, model-risk and operations reviewers.
 (engine rapidocr-onnx 1.4.4, pipeline 0.3.0, seed fixed, 240 synthetic pages, 111 held-out test pages,
 2,505 test fields). Dashboard: `reports/ocr_dashboard.html`. **All of it is synthetic.**
 
+> **Re-measured on 21 Oct with bundled fonts (supersedes the figures below).** The first run rendered pages
+> with Windows fonts, which do not exist on a Linux build machine, so CI could not reproduce it. Fonts are now
+> bundled (`ocr/synthetic/fonts`), pages are identical everywhere, and the run was repeated. Same conclusion,
+> slightly different numbers: 2,505 test figures; **0 of 836 straight-through figures wrong** (95% bound 0.46%);
+> overall accuracy 48.9%, straight-through rate 33.4%. By tier (correct / straight-through): clean 60.8% / 42.1%,
+> mild 72.2% / 50.7%, moderate 59.8% / 41.6%, severe 5.9% / 1.4% (rescan requested). By layout: A 74.8% correct,
+> B 24.5%. The release gate still **fails** on the same five coverage checks. Tamper: one-figure edits flagged 97.5%
+> and pinpointed 55%; consistent forgeries flagged 70.8%, pinpointed 0%. Swapped siblings pass straight through
+> 15% of the time, column shifts 40%. Tables below are from the earlier Windows-font run and are kept for history.
+> `ocr/eval/baseline.json` holds this run, and is the regression reference, not an accepted champion.
+
 ## Verdict first
 
 | Question | Answer |

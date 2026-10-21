@@ -285,7 +285,7 @@ class CommandOutbox:
 
     def blocked_keys(self) -> set[str]:
         rows = self.conn.execute(
-            f"SELECT DISTINCT okey FROM commands WHERE status IN ({','.join('?' * len(BLOCKING))})",  # noqa: S608
+            f"SELECT DISTINCT okey FROM commands WHERE status IN ({','.join('?' * len(BLOCKING))})",  # noqa: S608  # nosec B608 - only a count of "?" placeholders is interpolated
             BLOCKING,
         ).fetchall()
         return {r[0] for r in rows}
@@ -338,7 +338,7 @@ class CommandOutbox:
             raise ValidationFailure("outcome must be applied, not_applied or requeue")
         attempts = "0" if outcome == "requeue" else "attempts"
         self.conn.execute(
-            f"UPDATE commands SET status=?, detail=?, attempts={attempts} WHERE command_id=?",  # noqa: S608
+            f"UPDATE commands SET status=?, detail=?, attempts={attempts} WHERE command_id=?",  # noqa: S608  # nosec B608 - attempts is the literal "0" or "attempts"
             (new, f"resolved by {principal.id}: {outcome}: {note}", command_id),
         )
 

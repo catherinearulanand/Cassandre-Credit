@@ -62,7 +62,7 @@ class Doc:
 
 def _ocr_cached(engine: OcrEngine, doc: Doc) -> list[Word]:
     CACHE.mkdir(parents=True, exist_ok=True)
-    h = hashlib.sha1(doc.page.image.tobytes()).hexdigest()[:20]
+    h = hashlib.sha1(doc.page.image.tobytes(), usedforsecurity=False).hexdigest()[:20]
     path = CACHE / f"{engine.name}-{engine.version}-{h}.json"
     if path.exists():
         return [Word(**w) for w in json.loads(path.read_text(encoding="utf-8"))]

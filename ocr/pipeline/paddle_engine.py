@@ -22,7 +22,7 @@ import json
 import os
 import queue
 import struct
-import subprocess
+import subprocess  # nosec B404 - fixed interpreter and script, no shell
 import threading
 from collections.abc import Callable
 from pathlib import Path
@@ -71,7 +71,7 @@ class PaddleWorkerTransport:
         env = dict(
             os.environ, PYTHONIOENCODING="utf-8", PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK="True"
         )
-        self._proc = subprocess.Popen(  # noqa: S603 - fixed interpreter and script, no shell
+        self._proc = subprocess.Popen(  # noqa: S603  # nosec B603 - fixed interpreter and script, no shell
             [str(self._python), "-P", str(WORKER)],
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
