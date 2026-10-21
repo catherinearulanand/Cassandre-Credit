@@ -1,0 +1,13 @@
+engine rapidocr-onnx==1.4.4  pipeline ocr-pipeline/0.3.0  threshold 0.199
+  accuracy_raw                                   50.30%  [48.34, 52.26]  n=2505
+  accuracy_after_validation                      50.30%  [48.34, 52.26]  n=2505
+  stp_rate                                       32.10%  [30.30, 33.95]  n=2505
+  stp_precision                                  100.00%  [99.52, 100.00]  n=804
+  delivered_accuracy_assuming_perfect_review     100.00%  [99.85, 100.00]  n=2505
+GATE FAIL: overall.stp_page_clean.ci_low = 0.9162 < minimum 0.93
+GATE FAIL: by_level.clean.stp_rate = 0.4240 < minimum 0.8
+GATE FAIL: by_level.clean.accuracy_after_validation = 0.6507 < minimum 0.99
+GATE FAIL: by_level.mild.accuracy_after_validation = 0.7537 < minimum 0.99
+GATE FAIL: by_level.moderate.accuracy_after_validation = 0.6158 < minimum 0.8
+GATE FAILED
+exit=1

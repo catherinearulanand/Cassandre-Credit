@@ -1,0 +1,93 @@
+{
+  "pages": 6,
+  "levels": [
+    "clean",
+    "mild",
+    "moderate"
+  ],
+  "seed": 2026,
+  "engines": {
+    "rapidocr-onnx": {
+      "per_level": {
+        "clean": {
+          "figures": 45,
+          "located": 45,
+          "correct": 45,
+          "stp": 45,
+          "stp_wrong": 0,
+          "pages": 2
+        },
+        "mild": {
+          "figures": 45,
+          "located": 45,
+          "correct": 45,
+          "stp": 21,
+          "stp_wrong": 0,
+          "pages": 2
+        },
+        "moderate": {
+          "figures": 45,
+          "located": 41,
+          "correct": 41,
+          "stp": 14,
+          "stp_wrong": 0,
+          "pages": 2
+        }
+      },
+      "overall": {
+        "figures": 135,
+        "located": 131,
+        "correct": 131,
+        "stp": 80,
+        "stp_wrong": 0,
+        "pages": 6,
+        "stp_precision_ci": [
+          0.954180263735425,
+          1.0
+        ]
+      },
+      "seconds_per_page": 8.74
+    },
+    "vendor-paddleocr-local/paddleocr-local": {
+      "per_level": {
+        "clean": {
+          "figures": 45,
+          "located": 45,
+          "correct": 45,
+          "stp": 45,
+          "stp_wrong": 0,
+          "pages": 2
+        },
+        "mild": {
+          "figures": 45,
+          "located": 45,
+          "correct": 45,
+          "stp": 41,
+          "stp_wrong": 0,
+          "pages": 2
+        },
+        "moderate": {
+          "figures": 45,
+          "located": 42,
+          "correct": 28,
+          "stp": 15,
+          "stp_wrong": 0,
+          "pages": 2
+        }
+      },
+      "overall": {
+        "figures": 135,
+        "located": 132,
+        "correct": 118,
+        "stp": 101,
+        "stp_wrong": 0,
+        "pages": 6,
+        "stp_precision_ci": [
+          0.9633580563440465,
+          0.9999999999999998
+        ]
+      },
+      "seconds_per_page": 52.5
+    }
+  }
+}

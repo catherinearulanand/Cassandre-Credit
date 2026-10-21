@@ -97,7 +97,7 @@ IMG = Image.new("RGB", (W, H), "white")
 def test_vendor_words_flow_through_the_unchanged_pipeline() -> None:
     eng, log = _engine(FakeTransport(_page_words()))
     words = eng.recognise(IMG)
-    assert eng.name == "vendor:acme-ocr" and 0.0 <= words[0].conf <= 1.0
+    assert eng.name == "vendor-acme-ocr" and 0.0 <= words[0].conf <= 1.0
     ext = extract_statement(words, W, H, "DOC-1")
     validate_statement(ext)
     assert ext.fields["total_equity"].value_paise == 500 * 100_000 * 100

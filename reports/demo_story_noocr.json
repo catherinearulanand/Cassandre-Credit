@@ -1,0 +1,493 @@
+{
+  "engine": "none",
+  "run_date": "2026-10-21",
+  "seed": 2026,
+  "journeys": [
+    {
+      "obligor": "OBL-000001",
+      "archetype": "steady",
+      "steps": [
+        {
+          "when": "2023-06-15",
+          "component": "Sanction Compiler",
+          "mode": "REAL",
+          "text": "Read the standard sanction letter: 2 facilities, 5 covenants, every field cited to a line. Matches the letter: True.",
+          "data": {
+            "cited_elements": 7
+          }
+        },
+        {
+          "when": "2023-06-15",
+          "component": "CTS service",
+          "mode": "REAL",
+          "text": "Published the Credit Term Sheet: validated against credit policy and large-exposure limits, signed, hash-chained. Maker is the agent's human; checker is a different person (simulated human: Sunita, CAD checker).",
+          "data": {
+            "version": 1
+          }
+        },
+        {
+          "when": "2023-06-15",
+          "component": "Monitoring calendar",
+          "mode": "REAL",
+          "text": "Derived 108 obligations from the CTS (stock statements, QIS, audited accounts, compliance certificates). Due dates come from the monitoring rule pack.",
+          "data": {
+            "obligations": 108
+          }
+        },
+        {
+          "when": "2023-06-15",
+          "component": "Finacle adapter",
+          "mode": "REAL adapter + SIMULATED Finacle",
+          "text": "Pushed the limit tree to Finacle through the adapter (signed approvals, idempotent, ordered): accepted, accepted. The receiving end is the Finacle simulator, not a bank system.",
+          "data": {
+            "cc_limit_paise": 19500000000
+          }
+        },
+        {
+          "when": "2026-09-30",
+          "component": "Covenant engine",
+          "mode": "REAL",
+          "text": "Tested 50 covenant instances to 2026-09-30; 50/50 agree with an independent calculator. First breach: none.",
+          "data": {
+            "tests": 50,
+            "agree": 50
+          }
+        },
+        {
+          "when": "2026-10-05",
+          "component": "Drawdown gate",
+          "mode": "REAL",
+          "text": "Drawdown request: APPROVE (all ten checks passed)",
+          "data": {
+            "latency_ms": 1.504,
+            "decision": "APPROVE"
+          }
+        },
+        {
+          "when": "2026-10-05",
+          "component": "Finacle adapter",
+          "mode": "REAL adapter + SIMULATED Finacle",
+          "text": "Disbursed 975,000,000 paise: accepted. Balance now 975,000,000 paise.",
+          "data": {
+            "status": "accepted",
+            "finacle_ref": "FDB000001"
+          }
+        },
+        {
+          "when": "2026-10-21",
+          "component": "Closure service",
+          "mode": "REAL",
+          "text": "Zero-dues proof 238e4e577181\u2026 over 2 facilities approved by a sanctioning authority (simulated human).",
+          "data": {}
+        },
+        {
+          "when": "2026-10-21",
+          "component": "Document release",
+          "mode": "REAL",
+          "text": "All 6 release actions done in time: days delayed 0, compensation \u20b90. AccountClosed event for 2 facilities.",
+          "data": {}
+        }
+      ],
+      "summary": {
+        "cc_account": "CC-000001",
+        "cc_limit_paise": 19500000000,
+        "events_emitted": {},
+        "finacle_writes": 3
+      }
+    },
+    {
+      "obligor": "OBL-000002",
+      "archetype": "default",
+      "steps": [
+        {
+          "when": "2023-06-15",
+          "component": "Sanction Compiler",
+          "mode": "REAL",
+          "text": "Read the standard sanction letter: 2 facilities, 4 covenants, every field cited to a line. Matches the letter: True.",
+          "data": {
+            "cited_elements": 6
+          }
+        },
+        {
+          "when": "2023-06-15",
+          "component": "CTS service",
+          "mode": "REAL",
+          "text": "Published the Credit Term Sheet: validated against credit policy and large-exposure limits, signed, hash-chained. Maker is the agent's human; checker is a different person (simulated human: Sunita, CAD checker).",
+          "data": {
+            "version": 1
+          }
+        },
+        {
+          "when": "2023-06-15",
+          "component": "Monitoring calendar",
+          "mode": "REAL",
+          "text": "Derived 98 obligations from the CTS (stock statements, QIS, audited accounts, compliance certificates). Due dates come from the monitoring rule pack.",
+          "data": {
+            "obligations": 98
+          }
+        },
+        {
+          "when": "2023-06-15",
+          "component": "Finacle adapter",
+          "mode": "REAL adapter + SIMULATED Finacle",
+          "text": "Pushed the limit tree to Finacle through the adapter (signed approvals, idempotent, ordered): accepted, accepted. The receiving end is the Finacle simulator, not a bank system.",
+          "data": {
+            "cc_limit_paise": 124500000000
+          }
+        },
+        {
+          "when": "2025-06-30",
+          "component": "Borrower portal",
+          "mode": "SIMULATED",
+          "text": "The borrower delivered 50 documents on time up to 2025-06-30; nothing arrives afterwards.",
+          "data": {
+            "delivered": 50
+          }
+        },
+        {
+          "when": "2025-06-30",
+          "component": "EWS + SMA service",
+          "mode": "REAL",
+          "text": "Conduct: utilisation 75%, 1 overdrawn days, 1 returned cheques, DPD 0. EWS score 0 (none); classification STANDARD.",
+          "data": {
+            "ews_score": 0,
+            "ews_level": "none",
+            "bucket": "STANDARD",
+            "data_gap": true
+          }
+        },
+        {
+          "when": "2025-09-30",
+          "component": "EWS + SMA service",
+          "mode": "REAL",
+          "text": "Conduct: utilisation 87%, 9 overdrawn days, 1 returned cheques, DPD 0. EWS score 0 (none); classification STANDARD.",
+          "data": {
+            "ews_score": 0,
+            "ews_level": "none",
+            "bucket": "STANDARD",
+            "data_gap": true
+          }
+        },
+        {
+          "when": "2025-12-31",
+          "component": "EWS + SMA service",
+          "mode": "REAL",
+          "text": "Conduct: utilisation 88%, 9 overdrawn days, 5 returned cheques, DPD 0. EWS score 55 (elevated); classification STANDARD.",
+          "data": {
+            "ews_score": 55,
+            "ews_level": "elevated",
+            "bucket": "STANDARD",
+            "data_gap": true
+          }
+        },
+        {
+          "when": "2026-03-31",
+          "component": "Covenant engine",
+          "mode": "REAL",
+          "text": "Tested 32 covenant instances to 2026-03-31; 32/32 agree with an independent calculator. First breach: 2025-03-31.",
+          "data": {
+            "tests": 32,
+            "agree": 32
+          }
+        },
+        {
+          "when": "2026-03-31",
+          "component": "EWS + SMA service",
+          "mode": "REAL",
+          "text": "Conduct: utilisation 86%, 12 overdrawn days, 5 returned cheques, DPD 65. EWS score 75 (critical); classification SMA-2.",
+          "data": {
+            "ews_score": 75,
+            "ews_level": "critical",
+            "bucket": "SMA-2",
+            "data_gap": true
+          }
+        },
+        {
+          "when": "2026-03-31",
+          "component": "EWS Analyst",
+          "mode": "REAL (template; LLM not connected)",
+          "text": "Note: Early-warning level is critical with score 75. Indicators fired: EWS01_cheque_returns, EWS04_stock_statement_delay, EWS09_gst_gap. 7 indicator(s) could not be evaluated. Data is incomplete, so the sco Proposals filed: 1.",
+          "data": {
+            "proposals": 1
+          }
+        },
+        {
+          "when": "2026-03-31",
+          "component": "Drawdown gate",
+          "mode": "REAL",
+          "text": "Drawdown request during stress: REJECT (covenant_status: stopping breaches: ['DECIDED-PRECAUTION']; sma_npa_status: SMA-2)",
+          "data": {
+            "latency_ms": 0.338,
+            "decision": "REJECT"
+          }
+        },
+        {
+          "when": "2026-03-31",
+          "component": "RFA service",
+          "mode": "REAL",
+          "text": "Red-flag file opened from EWS evidence; the gate now sees the flag: True.",
+          "data": {}
+        },
+        {
+          "when": "2026-03-31",
+          "component": "RFA service",
+          "mode": "REAL",
+          "text": "A fraud-classification proposal is refused before natural justice: rfa_not_ready.",
+          "data": {}
+        },
+        {
+          "when": "2026-04-22",
+          "component": "RFA service",
+          "mode": "REAL",
+          "text": "Show-cause issued; after the response window: committee ready = True (response window elapsed).",
+          "data": {}
+        },
+        {
+          "when": "2026-04-22",
+          "component": "RFA committee",
+          "mode": "SIMULATED human",
+          "text": "Committee closes the file with no fraud finding; the gate flag clears.",
+          "data": {}
+        },
+        {
+          "when": "2026-05-30",
+          "component": "SMA service",
+          "mode": "REAL",
+          "text": "No payment for 60 more days (DPD 125): classification NPA; IRAC class SUBSTANDARD, provision 15% (rule pack is unverified).",
+          "data": {
+            "bucket": "NPA"
+          }
+        },
+        {
+          "when": "2026-05-30",
+          "component": "Stressed-asset service",
+          "mode": "REAL",
+          "text": "Resolution clock started: review ends 2026-05-26, plan due 2026-11-22.",
+          "data": {
+            "review_period_end": "2026-05-26",
+            "resolution_deadline": "2026-11-22"
+          }
+        },
+        {
+          "when": "2026-05-30",
+          "component": "Recovery Agent",
+          "mode": "REAL (template; LLM not connected)",
+          "text": "Outstanding is 50000000000 paise. The offer is 32000000000 paise, a recovery ratio of 0.6400. Realisable security is 36000000000 paise; the offer is below that value.",
+          "data": {
+            "proposals": 1
+          }
+        },
+        {
+          "when": "2026-05-30",
+          "component": "Recovery head",
+          "mode": "SIMULATED human",
+          "text": "Approved the settlement at delegated power; the approval records the amount.",
+          "data": {}
+        },
+        {
+          "when": "2026-05-30",
+          "component": "Monitoring calendar",
+          "mode": "REAL",
+          "text": "Chase sweep: 32 overdue obligations moved up the ladder.",
+          "data": {}
+        }
+      ],
+      "summary": {
+        "cc_account": "CC-000002",
+        "cc_limit_paise": 124500000000,
+        "events_emitted": {
+          "signal.raised": 3,
+          "ews.score.changed": 2,
+          "sma.changed": 2,
+          "agent.run.completed": 2,
+          "rfa.opened": 1,
+          "obligation.overdue": 128
+        },
+        "finacle_writes": 2
+      }
+    },
+    {
+      "obligor": "OBL-000007",
+      "archetype": "negotiated",
+      "steps": [
+        {
+          "when": "2023-06-15",
+          "component": "Sanction Compiler",
+          "mode": "REAL",
+          "text": "Negotiated agreement: grammar could not read it (7 unresolved fields). Routed to a CAD maker.",
+          "data": {
+            "unresolved": 7
+          }
+        },
+        {
+          "when": "2023-06-15",
+          "component": "LLM clause reader",
+          "mode": "NOT BUILT",
+          "text": "A self-hosted model would read the agreement here; no model is connected, so a human types the terms (simulated human) and the CTS is taken from the generator's truth.",
+          "data": {}
+        },
+        {
+          "when": "2023-06-15",
+          "component": "CTS service",
+          "mode": "REAL",
+          "text": "Published the Credit Term Sheet: validated against credit policy and large-exposure limits, signed, hash-chained. Maker is the agent's human; checker is a different person (simulated human: Sunita, CAD checker).",
+          "data": {
+            "version": 1
+          }
+        },
+        {
+          "when": "2023-06-15",
+          "component": "Monitoring calendar",
+          "mode": "REAL",
+          "text": "Derived 98 obligations from the CTS (stock statements, QIS, audited accounts, compliance certificates). Due dates come from the monitoring rule pack.",
+          "data": {
+            "obligations": 98
+          }
+        },
+        {
+          "when": "2023-06-15",
+          "component": "Finacle adapter",
+          "mode": "REAL adapter + SIMULATED Finacle",
+          "text": "Pushed the limit tree to Finacle through the adapter (signed approvals, idempotent, ordered): accepted, accepted. The receiving end is the Finacle simulator, not a bank system.",
+          "data": {
+            "cc_limit_paise": 82000000000
+          }
+        }
+      ],
+      "summary": {
+        "cc_account": "CC-000007",
+        "cc_limit_paise": 82000000000,
+        "note": "Stops at the sanction stage: the model that would read negotiated agreements is not connected."
+      }
+    },
+    {
+      "obligor": "OBL-000038",
+      "archetype": "breach",
+      "steps": [
+        {
+          "when": "2023-06-15",
+          "component": "Sanction Compiler",
+          "mode": "REAL",
+          "text": "Read the standard sanction letter: 2 facilities, 5 covenants, every field cited to a line. Matches the letter: True.",
+          "data": {
+            "cited_elements": 7
+          }
+        },
+        {
+          "when": "2023-06-15",
+          "component": "CTS service",
+          "mode": "REAL",
+          "text": "Published the Credit Term Sheet: validated against credit policy and large-exposure limits, signed, hash-chained. Maker is the agent's human; checker is a different person (simulated human: Sunita, CAD checker).",
+          "data": {
+            "version": 1
+          }
+        },
+        {
+          "when": "2023-06-15",
+          "component": "Monitoring calendar",
+          "mode": "REAL",
+          "text": "Derived 108 obligations from the CTS (stock statements, QIS, audited accounts, compliance certificates). Due dates come from the monitoring rule pack.",
+          "data": {
+            "obligations": 108
+          }
+        },
+        {
+          "when": "2023-06-15",
+          "component": "Finacle adapter",
+          "mode": "REAL adapter + SIMULATED Finacle",
+          "text": "Pushed the limit tree to Finacle through the adapter (signed approvals, idempotent, ordered): accepted, accepted. The receiving end is the Finacle simulator, not a bank system.",
+          "data": {
+            "cc_limit_paise": 67500000000
+          }
+        },
+        {
+          "when": "2025-04-20",
+          "component": "Drawdown gate",
+          "mode": "REAL",
+          "text": "Drawdown request in the quarter before the breach: APPROVE (all ten checks passed)",
+          "data": {
+            "latency_ms": 0.25,
+            "decision": "APPROVE"
+          }
+        },
+        {
+          "when": "2025-04-20",
+          "component": "Finacle adapter",
+          "mode": "REAL adapter + SIMULATED Finacle",
+          "text": "Disbursed 3,375,000,000 paise: accepted. Balance now 3,375,000,000 paise.",
+          "data": {
+            "status": "accepted",
+            "finacle_ref": "FDB000001"
+          }
+        },
+        {
+          "when": "2025-06-30",
+          "component": "Covenant engine",
+          "mode": "REAL",
+          "text": "Tested 25 covenant instances to 2025-06-30; 25/25 agree with an independent calculator. First breach: 2025-06-30.",
+          "data": {
+            "tests": 25,
+            "agree": 25
+          }
+        },
+        {
+          "when": "2025-07-30",
+          "component": "Case service",
+          "mode": "REAL",
+          "text": "Opened breach case for 'Net Debt / EBITDA'.",
+          "data": {}
+        },
+        {
+          "when": "2025-07-30",
+          "component": "Covenant Agent",
+          "mode": "REAL (templates; LLM not connected)",
+          "text": "Proposed 2 consequence(s) and drafted a reservation-of-rights letter (source: template). It cannot apply, send or waive anything.",
+          "data": {
+            "proposals": 3,
+            "letter_excerpt": "We refer to the financial covenant \"Net Debt / EBITDA\" in your facility documents. For the period ended 2025-06-30 the tested value was 3.1421 against the requi",
+            "tool_calls": 6
+          }
+        },
+        {
+          "when": "2025-07-30",
+          "component": "Maker-checker",
+          "mode": "REAL",
+          "text": "The agent's own human cannot approve its proposal: maker_equals_checker.",
+          "data": {}
+        },
+        {
+          "when": "2025-07-30",
+          "component": "Credit monitoring officer",
+          "mode": "SIMULATED human",
+          "text": "A second officer (Arjun) approved the consequences with a signed, payload-bound approval.",
+          "data": {}
+        },
+        {
+          "when": "2025-07-30",
+          "component": "Drawdown gate",
+          "mode": "REAL",
+          "text": "Drawdown request after the breach: REJECT (covenant_status: stopping breaches: ['DECIDED-PRECAUTION'])",
+          "data": {
+            "latency_ms": 0.215,
+            "decision": "REJECT"
+          }
+        }
+      ],
+      "summary": {
+        "cc_account": "CC-000038",
+        "cc_limit_paise": 67500000000,
+        "events_emitted": {
+          "agent.run.completed": 1
+        },
+        "finacle_writes": 3
+      }
+    }
+  ],
+  "wall_seconds": 2.8,
+  "severity_scale": [
+    "low",
+    "medium",
+    "high",
+    "critical"
+  ]
+}

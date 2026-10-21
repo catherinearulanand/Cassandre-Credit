@@ -198,3 +198,29 @@ def test_renderer_ground_truth_is_exact_and_levels_differ() -> None:
         np.asarray(severe.image.convert("L"), dtype=float),
     )
     assert np.abs(a - b).mean() > 5
+
+
+def test_word_level_engine_output_finds_the_unit_and_binds_columns() -> None:
+    """Engines that return one box per token ("(in", "lakhs)", "30", "June", "2025") must work as well
+    as engines that return a box per line: the unit sits past the 14th token and the year in the
+    title must not be mistaken for the first value row."""
+    words = [
+        _w("Saffron", 60, 40), _w("Synthetic", 140, 40), _w("Textiles", 240, 40), _w("Pvt", 330, 40),
+        _w("Ltd", 380, 40), _w("Balance", 60, 70), _w("Sheet", 150, 70), _w("for", 220, 70),
+        _w("the", 260, 70), _w("quarter", 300, 70), _w("ended", 400, 70), _w("30", 480, 70),
+        _w("June", 520, 70), _w("2025", 580, 70), _w("(in", 60, 105), _w("lakhs)", 110, 105),
+        _w("Current", 820, 105), _w("Previous", 1010, 105),
+    ]  # fmt: skip
+    y = 165
+    for label, cur, pri in BS_ROWS:
+        words += [
+            _w(label, 60, y),
+            _w(cur, 960 - 10 * len(cur), y, 960),
+            _w(pri, 1150 - 10 * len(pri), y, 1150),
+        ]
+        y += 36
+    ext = extract_statement(words, W, H, "DOC-1")
+    assert ext.unit == UnitScale.LAKHS and "column_binding_uncertain" not in ext.doc_flags
+    validate_statement(ext)
+    assert ext.fields["total_equity"].value_paise == 500 * 100_000 * 100
+    assert not ext.fields["total_equity"].validations

@@ -9,3 +9,4 @@ __pycache__/
 .env
 reports/_cache/
 *.egg-info/
+.venv-paddle/

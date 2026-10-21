@@ -29,6 +29,7 @@ python -m tools.pricing_model           # cost-to-serve and price corridor (plac
 | Monitoring calendar, SMA/ECL, entity resolution, RFA, EWS service, perfection, stressed assets, recovery, closure, review | Built as domain services with ports; reviewed twice by independent red-teams (`docs/AUDIT_LOG.md`, round 3). **No persistence, API or UI** | `tests/unit/test_phase2_*`, `test_phase3_*` |
 | Agents (covenant, EWS analyst, review memo, recovery) and hardened runtime | Built; propose-only, number-bound drafts, template fallback. **LLM drafting not measured** | `docs/model-cards/agents.md` |
 | Outsourced OCR port | Built (ADR 0004); needs a vendor adapter, per-vendor calibration and a bake-off on real scans | `ocr/pipeline/vendor.py` |
+| PaddleOCR and the demonstration story | PaddleOCR local worker **connected**; hosted API adapter awaiting a key; four-borrower replay with every step labelled real or simulated | `docs/SIMULATION_BRIEF.md`, `python -m sim.demo_story` |
 | AI inventory, model cards, validation pack | Built; **nothing is validated** | `governance/`, `docs/VALIDATION_PACK.md` |
 
 ## What the numbers do and do not prove

@@ -1,0 +1,135 @@
+[
+  {
+    "area": "OCR",
+    "name": "PaddleOCR (local worker)",
+    "status": "CONNECTED",
+    "behind_it": "PP-OCR models in an isolated interpreter (paddleocr-local)",
+    "evidence": "read ['Total', 'Equity', '500.00']"
+  },
+  {
+    "area": "OCR",
+    "name": "PaddleOCR hosted API",
+    "status": "AWAITING KEY",
+    "behind_it": "adapter written (synthetic data only: the service is outside India); response shape unverified until a key is used",
+    "evidence": "no key in the environment"
+  },
+  {
+    "area": "Core banking",
+    "name": "Finacle",
+    "status": "SIMULATED",
+    "behind_it": "simulators/finacle_sim (in-process); the adapter in front of it is the production code",
+    "evidence": "simulator answered HTTP 200"
+  },
+  {
+    "area": "AI",
+    "name": "LLM providers (self-hosted and frontier)",
+    "status": "NOT BUILT",
+    "behind_it": "gateway, redaction, budgets and kill switch are real; no provider is attached, so drafting uses deterministic templates",
+    "evidence": "7 use cases routed; 0 providers connected"
+  },
+  {
+    "area": "Platform",
+    "name": "Rules engine, 20 rule packs",
+    "status": "CONNECTED",
+    "behind_it": "production code; pack contents are unverified against RBI text",
+    "evidence": "rules-test passes"
+  },
+  {
+    "area": "Platform",
+    "name": "Covenant engine, CTS, limits, drawing power, drawdown gate",
+    "status": "CONNECTED",
+    "behind_it": "production code on synthetic input",
+    "evidence": "agrees with independent calculators"
+  },
+  {
+    "area": "Platform",
+    "name": "SMA/ECL, RFA, EWS, calendar, stressed assets, recovery, closure, review",
+    "status": "CONNECTED",
+    "behind_it": "production domain services on synthetic input",
+    "evidence": "tests/unit, tests/integration"
+  },
+  {
+    "area": "Platform",
+    "name": "Agents (covenant, EWS, review memo, recovery)",
+    "status": "CONNECTED",
+    "behind_it": "real runtime and guards; drafts come from templates because no LLM is attached",
+    "evidence": "tests/unit/test_agents.py"
+  },
+  {
+    "area": "Platform",
+    "name": "Model gateway",
+    "status": "CONNECTED",
+    "behind_it": "real policy engine with scripted providers in tests",
+    "evidence": "tests/unit/test_model_gateway.py"
+  },
+  {
+    "area": "ML",
+    "name": "EWS and breach models",
+    "status": "CONNECTED",
+    "behind_it": "LightGBM trained and evaluated on the synthetic book",
+    "evidence": "reports/simulation_report.json"
+  },
+  {
+    "area": "Data stores",
+    "name": "Postgres / object storage",
+    "status": "SIMULATED",
+    "behind_it": "in-memory and SQLite adapters behind ports",
+    "evidence": "ADR 0002"
+  },
+  {
+    "area": "Data stores",
+    "name": "Kafka / event bus",
+    "status": "SIMULATED",
+    "behind_it": "in-process hash-chained event log with idempotent consumers",
+    "evidence": "libs/events/bus.py"
+  },
+  {
+    "area": "Data stores",
+    "name": "Temporal, Neo4j, Feast",
+    "status": "NOT BUILT",
+    "behind_it": "ports only",
+    "evidence": "ADR 0002"
+  },
+  {
+    "area": "Security",
+    "name": "Keys and signing",
+    "status": "SIMULATED",
+    "behind_it": "LocalDevKeyProvider (software keys); HSM/KMS provider not built",
+    "evidence": "libs/security/crypto.py"
+  },
+  {
+    "area": "Security",
+    "name": "SSO / OIDC / MFA, mTLS, SIEM",
+    "status": "NOT BUILT",
+    "behind_it": "principals are constructed in code",
+    "evidence": "docs/SECURITY_MODEL.md"
+  },
+  {
+    "area": "People",
+    "name": "Credit officers, committees, CAD checker, recovery head",
+    "status": "SIMULATED",
+    "behind_it": "scripted principals, labelled '(simulated human)' in every timeline",
+    "evidence": "sim/demo_story.py"
+  },
+  {
+    "area": "External data",
+    "name": "GST, Account Aggregator, bureaus, MCA/CERSAI, ratings, news",
+    "status": "SIMULATED",
+    "behind_it": "7 of 14 early-warning indicators have synthetic feeds; the rest are reported as not evaluable",
+    "evidence": "libs/testing/synthetic, sim/book.py"
+  },
+  {
+    "area": "External data",
+    "name": "Borrower portal and document uploads",
+    "status": "SIMULATED",
+    "behind_it": "documents are rendered by the synthetic generator",
+    "evidence": "ocr/synthetic/render.py"
+  },
+  {
+    "area": "UI / API",
+    "name": "Web UI, REST API",
+    "status": "NOT BUILT",
+    "behind_it": "domain services only",
+    "evidence": "README"
+  }
+]

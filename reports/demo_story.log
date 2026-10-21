@@ -1,0 +1,62 @@
+
+== steady (OBL-000001) ==
+  2023-06-15  [                                  REAL] Sanction Compiler: Read the standard sanction letter: 2 facilities, 5 covenants, every field cited to a line. Matches the letter: True.
+  2023-06-15  [                                  REAL] CTS service: Published the Credit Term Sheet: validated against credit policy and large-exposure limits, signed, hash-chained. Maker is the agent's human; checker 
+  2023-06-15  [                                  REAL] Monitoring calendar: Derived 108 obligations from the CTS (stock statements, QIS, audited accounts, compliance certificates). Due dates come from the monitoring rule pack.
+  2023-06-15  [      REAL adapter + SIMULATED Finacle] Finacle adapter: Pushed the limit tree to Finacle through the adapter (signed approvals, idempotent, ordered): accepted, accepted. The receiving end is the Finacle sim
+  2025-06-30  [                            REAL+SYNTH] OCR + extraction + validation: vendor-paddleocr-local read the quarter's balance sheet and P&L (synthetic pages, 'mild' scan): 44/45 figures passed straight through correct, 0 wrong
+  2025-06-30  [                            REAL+SYNTH] Tamper check: A borrower edits one receivables figure on the balance sheet. The accounting identities caught it and held the page for review. (A forgery that also a
+  2026-09-30  [                                  REAL] Covenant engine: Tested 50 covenant instances to 2026-09-30; 50/50 agree with an independent calculator. First breach: none.
+  2026-10-05  [                                  REAL] Drawdown gate: Drawdown request: APPROVE (all ten checks passed)
+  2026-10-05  [      REAL adapter + SIMULATED Finacle] Finacle adapter: Disbursed 975,000,000 paise: accepted. Balance now 975,000,000 paise.
+  2026-10-21  [                                  REAL] Closure service: Zero-dues proof 238e4e577181… over 2 facilities approved by a sanctioning authority (simulated human).
+  2026-10-21  [                                  REAL] Document release: All 6 release actions done in time: days delayed 0, compensation ₹0. AccountClosed event for 2 facilities.
+
+== default (OBL-000002) ==
+  2023-06-15  [                                  REAL] Sanction Compiler: Read the standard sanction letter: 2 facilities, 4 covenants, every field cited to a line. Matches the letter: True.
+  2023-06-15  [                                  REAL] CTS service: Published the Credit Term Sheet: validated against credit policy and large-exposure limits, signed, hash-chained. Maker is the agent's human; checker 
+  2023-06-15  [                                  REAL] Monitoring calendar: Derived 98 obligations from the CTS (stock statements, QIS, audited accounts, compliance certificates). Due dates come from the monitoring rule pack.
+  2023-06-15  [      REAL adapter + SIMULATED Finacle] Finacle adapter: Pushed the limit tree to Finacle through the adapter (signed approvals, idempotent, ordered): accepted, accepted. The receiving end is the Finacle sim
+  2025-06-30  [                            REAL+SYNTH] OCR + extraction + validation: vendor-paddleocr-local read the quarter's balance sheet and P&L (synthetic pages, 'mild' scan): 44/45 figures passed straight through correct, 0 wrong
+  2025-06-30  [                             SIMULATED] Borrower portal: The borrower delivered 50 documents on time up to 2025-06-30; nothing arrives afterwards.
+  2025-06-30  [                                  REAL] EWS + SMA service: Conduct: utilisation 75%, 1 overdrawn days, 1 returned cheques, DPD 0. EWS score 0 (none); classification STANDARD.
+  2025-09-30  [                                  REAL] EWS + SMA service: Conduct: utilisation 87%, 9 overdrawn days, 1 returned cheques, DPD 0. EWS score 0 (none); classification STANDARD.
+  2025-12-31  [                                  REAL] EWS + SMA service: Conduct: utilisation 88%, 9 overdrawn days, 5 returned cheques, DPD 0. EWS score 55 (elevated); classification STANDARD.
+  2026-03-31  [                                  REAL] Covenant engine: Tested 32 covenant instances to 2026-03-31; 32/32 agree with an independent calculator. First breach: 2025-03-31.
+  2026-03-31  [                                  REAL] EWS + SMA service: Conduct: utilisation 86%, 12 overdrawn days, 5 returned cheques, DPD 65. EWS score 75 (critical); classification SMA-2.
+  2026-03-31  [    REAL (template; LLM not connected)] EWS Analyst: Note: Early-warning level is critical with score 75. Indicators fired: EWS01_cheque_returns, EWS04_stock_statement_delay, EWS09_gst_gap. 7 indicator(s
+  2026-03-31  [                                  REAL] Drawdown gate: Drawdown request during stress: REJECT (covenant_status: stopping breaches: ['DECIDED-PRECAUTION']; sma_npa_status: SMA-2)
+  2026-03-31  [                                  REAL] RFA service: Red-flag file opened from EWS evidence; the gate now sees the flag: True.
+  2026-03-31  [                                  REAL] RFA service: A fraud-classification proposal is refused before natural justice: rfa_not_ready.
+  2026-04-22  [                                  REAL] RFA service: Show-cause issued; after the response window: committee ready = True (response window elapsed).
+  2026-04-22  [                       SIMULATED human] RFA committee: Committee closes the file with no fraud finding; the gate flag clears.
+  2026-05-30  [                                  REAL] SMA service: No payment for 60 more days (DPD 125): classification NPA; IRAC class SUBSTANDARD, provision 15% (rule pack is unverified).
+  2026-05-30  [                                  REAL] Stressed-asset service: Resolution clock started: review ends 2026-05-26, plan due 2026-11-22.
+  2026-05-30  [    REAL (template; LLM not connected)] Recovery Agent: Outstanding is 50000000000 paise. The offer is 32000000000 paise, a recovery ratio of 0.6400. Realisable security is 36000000000 paise; the offer is b
+  2026-05-30  [                       SIMULATED human] Recovery head: Approved the settlement at delegated power; the approval records the amount.
+  2026-05-30  [                                  REAL] Monitoring calendar: Chase sweep: 32 overdue obligations moved up the ladder.
+
+== negotiated (OBL-000007) ==
+  2023-06-15  [                                  REAL] Sanction Compiler: Negotiated agreement: grammar could not read it (7 unresolved fields). Routed to a CAD maker.
+  2023-06-15  [                             NOT BUILT] LLM clause reader: A self-hosted model would read the agreement here; no model is connected, so a human types the terms (simulated human) and the CTS is taken from the g
+  2023-06-15  [                                  REAL] CTS service: Published the Credit Term Sheet: validated against credit policy and large-exposure limits, signed, hash-chained. Maker is the agent's human; checker 
+  2023-06-15  [                                  REAL] Monitoring calendar: Derived 98 obligations from the CTS (stock statements, QIS, audited accounts, compliance certificates). Due dates come from the monitoring rule pack.
+  2023-06-15  [      REAL adapter + SIMULATED Finacle] Finacle adapter: Pushed the limit tree to Finacle through the adapter (signed approvals, idempotent, ordered): accepted, accepted. The receiving end is the Finacle sim
+
+== breach (OBL-000038) ==
+  2023-06-15  [                                  REAL] Sanction Compiler: Read the standard sanction letter: 2 facilities, 5 covenants, every field cited to a line. Matches the letter: True.
+  2023-06-15  [                                  REAL] CTS service: Published the Credit Term Sheet: validated against credit policy and large-exposure limits, signed, hash-chained. Maker is the agent's human; checker 
+  2023-06-15  [                                  REAL] Monitoring calendar: Derived 108 obligations from the CTS (stock statements, QIS, audited accounts, compliance certificates). Due dates come from the monitoring rule pack.
+  2023-06-15  [      REAL adapter + SIMULATED Finacle] Finacle adapter: Pushed the limit tree to Finacle through the adapter (signed approvals, idempotent, ordered): accepted, accepted. The receiving end is the Finacle sim
+  2025-04-20  [                                  REAL] Drawdown gate: Drawdown request in the quarter before the breach: APPROVE (all ten checks passed)
+  2025-04-20  [      REAL adapter + SIMULATED Finacle] Finacle adapter: Disbursed 3,375,000,000 paise: accepted. Balance now 3,375,000,000 paise.
+  2025-06-30  [                            REAL+SYNTH] OCR + extraction + validation: vendor-paddleocr-local read the quarter's balance sheet and P&L (synthetic pages, 'mild' scan): 45/45 figures passed straight through correct, 0 wrong
+  2025-06-30  [                                  REAL] Covenant engine: Tested 25 covenant instances to 2025-06-30; 25/25 agree with an independent calculator. First breach: 2025-06-30.
+  2025-07-30  [                                  REAL] Case service: Opened breach case for 'Net Debt / EBITDA'.
+  2025-07-30  [   REAL (templates; LLM not connected)] Covenant Agent: Proposed 2 consequence(s) and drafted a reservation-of-rights letter (source: template). It cannot apply, send or waive anything.
+  2025-07-30  [                                  REAL] Maker-checker: The agent's own human cannot approve its proposal: maker_equals_checker.
+  2025-07-30  [                       SIMULATED human] Credit monitoring officer: A second officer (Arjun) approved the consequences with a signed, payload-bound approval.
+  2025-07-30  [                                  REAL] Drawdown gate: Drawdown request after the breach: REJECT (covenant_status: stopping breaches: ['DECIDED-PRECAUTION'])
+
+wrote reports\demo_story.json  (172.0s)
+exit=0

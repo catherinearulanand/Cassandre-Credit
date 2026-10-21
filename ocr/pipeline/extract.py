@@ -21,6 +21,9 @@ from ocr.pipeline.structure import TableRow, build_table
 _NORM = re.compile(r"[^a-z0-9]+")
 
 
+_AMOUNT_TOKEN = re.compile(r"\(?-?(?:\d[\d,]*\.\d{1,2}|\d{1,3}(?:,\d{2,3})+)\)?")
+
+
 def norm(label: str) -> str:
     return _NORM.sub("", label.lower())
 
@@ -121,7 +124,16 @@ def detect_statement(words: list[Word], table: list[TableRow] | None = None) -> 
 def extract_statement(
     words: list[Word], page_w: float, page_h: float, document_id: str, page: int = 1
 ) -> StatementExtraction:
-    header = " ".join(w.text for w in sorted(words, key=lambda w: (w.y0, w.x0))[:14])
+    ordered = sorted(words, key=lambda w: (w.y0, w.x0))
+    # The header is everything above the first row that carries a formatted amount (a number with a
+    # decimal point or digit-group commas; a bare year or day such as "2025" does not count). Engines
+    # that return one box per token need many more than 14 tokens to reach the unit note; engines that
+    # return one box per line need fewer. Falls back to the first 14 tokens when no amount is found.
+    first_amount_y = min(
+        (w.y0 for w in ordered if _AMOUNT_TOKEN.fullmatch(w.text.strip())), default=None
+    )
+    above = [w for w in ordered if first_amount_y is not None and w.y0 < first_amount_y - 1]
+    header = " ".join(w.text for w in (above[:80] if above else ordered[:14]))
     unit = detect_unit(header)
     unit_text = header if unit else None
     table: list[TableRow] = build_table(words, page_w)

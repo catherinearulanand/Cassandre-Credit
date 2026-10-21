@@ -645,10 +645,23 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--seed", type=int, default=2026)
     ap.add_argument("--tamper-inconsistent", type=int, default=40)
     ap.add_argument("--tamper-consistent", type=int, default=24)
+    ap.add_argument("--engine", choices=["rapid", "paddle"], default="rapid")
+    ap.add_argument(
+        "--out", type=Path, default=None, help="report path (default: the champion report)"
+    )
     ap.add_argument("--gate", action="store_true")
     ap.add_argument("--update-baseline", action="store_true")
     args = ap.parse_args(argv)
-    engine = RapidOcrEngine()
+    engine: OcrEngine
+    if args.engine == "paddle":
+        from platform_core.clock import SystemClock
+
+        from ocr.pipeline.paddle_engine import make_engine
+
+        engine = make_engine(SystemClock(), lambda entry: None)
+    else:
+        engine = RapidOcrEngine()
+    report_path = args.out or REPORT
     t0 = time.perf_counter()
     report = evaluate(engine, args.per_level, args.seed)
     docs = report.pop("_docs")
@@ -659,8 +672,8 @@ def main(argv: list[str] | None = None) -> int:
         engine, args.seed, args.tamper_inconsistent, args.tamper_consistent
     )
     report["wall_seconds"] = round(time.perf_counter() - t0, 1)
-    REPORT.parent.mkdir(parents=True, exist_ok=True)
-    REPORT.write_text(
+    report_path.parent.mkdir(parents=True, exist_ok=True)
+    report_path.write_text(
         json.dumps(_json_safe(report), indent=2, default=float, allow_nan=False), encoding="utf-8"
     )
     o = report["overall"]

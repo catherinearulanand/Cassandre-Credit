@@ -60,11 +60,14 @@ class VendorPolicy:
     max_image_bytes: int = 15_000_000
     max_words: int = 20_000
     sub_processors_disclosed: bool = False
+    # A non-India service may be used only for synthetic demonstration data. Real borrower data
+    # never goes to it; the flag is recorded on every audit entry.
+    synthetic_data_only: bool = False
 
     def check(self) -> None:
         problems = []
-        if self.region != "IN":
-            problems.append("processing must be in India")
+        if self.region != "IN" and not self.synthetic_data_only:
+            problems.append("processing must be in India (or synthetic_data_only)")
         if not self.zero_retention:
             problems.append("zero retention required")
         if not self.contract_ref.strip():
@@ -132,7 +135,7 @@ class VendorOcrEngine:
     ) -> None:
         policy.check()
         self._t, self._p, self._clock, self._audit = transport, policy, clock, audit
-        self.name = f"vendor:{policy.vendor_id}"
+        self.name = f"vendor-{policy.vendor_id}"
         self.version = version
 
     def recognise(self, image: Image.Image) -> list[Word]:
@@ -144,6 +147,8 @@ class VendorOcrEngine:
         entry: dict[str, Any] = {
             "at": self._clock.now().isoformat(),
             "vendor": self._p.vendor_id,
+            "region": self._p.region,
+            "synthetic_only": self._p.synthetic_data_only,
             "contract": self._p.contract_ref,
             "image_sha256": hashlib.sha256(payload).hexdigest(),
             "bytes": len(payload),

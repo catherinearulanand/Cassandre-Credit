@@ -238,7 +238,12 @@ def build_table(words: list[Word], page_width: float) -> TableList:
             if k is not None:
                 sums.setdefault(k, []).append(c.word.xc)
     centre_xc = {k: sum(v) / len(v) for k, v in sums.items()}
-    first_numeric_y = min(t.y for t in table if t.cells)
+    # the first row with a number *in a value column*: dates and years in the title are numbers too
+    # (word-level engines split them out), but they do not sit in a column
+    first_numeric_y = min(
+        (t.y for t in table if any(cluster_of(c) is not None for c in t.cells)),
+        default=min(t.y for t in table if t.cells),
+    )
     heads: dict[str, float] = {}
     for w in words_deskewed:
         if w.yc >= first_numeric_y:
