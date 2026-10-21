@@ -47,6 +47,18 @@ use_cases:
     primary:  { provider: anthropic_private, model: "claude-haiku-5-5" }
     fallback: { provider: vllm_in, model: "self-hosted-open-weight-medium" }
     budget: { requests_per_minute: 120, max_tokens_per_call: 4000, daily_cost_inr: 1000 }
+  review_memo.draft:
+    data_class: confidential
+    redact: true
+    primary:  { provider: anthropic_private, model: "claude-sonnet-5-5" }
+    fallback: { provider: vllm_in, model: "self-hosted-open-weight-large" }
+    budget: { requests_per_minute: 20, max_tokens_per_call: 6000, daily_cost_inr: 2000 }
+  recovery_agent.draft:
+    data_class: confidential
+    redact: true
+    primary:  { provider: anthropic_private, model: "claude-sonnet-5-5" }
+    fallback: { provider: vllm_in, model: "self-hosted-open-weight-large" }
+    budget: { requests_per_minute: 20, max_tokens_per_call: 6000, daily_cost_inr: 2000 }
 
 pricing_inr_per_1k_tokens:     # illustrative internal chargeback rates for budget enforcement
   self-hosted-open-weight-large:  { in: 0.10, out: 0.30 }

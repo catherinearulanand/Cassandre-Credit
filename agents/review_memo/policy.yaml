@@ -1,0 +1,12 @@
+agent_id: review_memo
+version: 1
+owner: credit-risk
+risk_tier: 2
+workload_identity: spiffe://credit-platform/agents/review_memo
+tools_allowed: [review.read_pack]
+tools_denied_examples: [limit.*, finacle.*, payments.*, borrower.send, case.*, cts.*]
+max_tool_calls: 10
+data_scope: { obligor: assigned_case_only, data_classes: [confidential] }
+llm_use_cases: [review_memo.draft]
+human_checkpoint: { action: review.approve, role: sanctioning_authority, rule: "the memo is input to a human review, not a decision" }
+kill_switch: model_gateway.use_case.review_memo.draft

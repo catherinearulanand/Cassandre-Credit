@@ -32,6 +32,7 @@ PREFIXES = frozenset(
         "REC",
         "AUD",
         "LLM",
+        "STR",
     }
 )
 _ID_RE = re.compile(r"^(?P<prefix>[A-Z]{2,5})-(?P<ulid>[0-9A-HJKMNP-TV-Z]{26})$")

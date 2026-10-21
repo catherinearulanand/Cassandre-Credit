@@ -66,9 +66,7 @@ def test_models_beat_trivial_baselines_out_of_time(world) -> None:  # type: igno
     book, _, cov = world
     m = stage_models(book, cov)
     e = m["ews"]
-    assert (
-        e["metrics"]["auc"] > 0.70 and e["metrics"]["auc"] > e["baselines"]["persistence_auc"]
-    )
+    assert e["metrics"]["auc"] > 0.70 and e["metrics"]["auc"] > e["baselines"]["persistence_auc"]
     assert e["metrics"]["ece_calibrated"] < 0.15
     assert all(len(r["reasons"]) == 5 for r in e["reasons_sample"])
     assert m["breach_forecast"]["metrics"]["auc"] > 0.8

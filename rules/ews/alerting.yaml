@@ -1,0 +1,23 @@
+id: ews.alerting
+version: 2026.10.0
+status: unverified
+effective_from: 2026-04-01
+source:
+  title: "EWS alert scoring and hysteresis (bank policy, placeholder parameters)"
+  url: null
+  source_note: "Illustrative. Calibrate points and thresholds on the bank's back-test (guide section 21 Q7) and have credit risk sign them."
+rules:
+  severity_points: { low: 10, medium: 20, high: 35 }
+  level_thresholds:
+    - { level: watch,    min_score: 20, clear_below: 15 }
+    - { level: elevated, min_score: 45, clear_below: 38 }
+    - { level: critical, min_score: 70, clear_below: 62 }
+  max_unevaluated_share: "0.40"
+tests:
+  - { input: { hit_severities: [], total_indicators: 14, unevaluated: 0 }, expect: { score: 0, level: none, data_gap: false } }
+  - { input: { hit_severities: [high, high], total_indicators: 14, unevaluated: 0 }, expect: { score: 70, level: critical, data_gap: false } }
+  - { input: { hit_severities: [medium], ml_score: 50, total_indicators: 14, unevaluated: 0 }, expect: { score: 50, level: elevated, data_gap: false } }
+  - { input: { hit_severities: [low], total_indicators: 14, unevaluated: 0, previous_level: elevated }, expect: { score: 10, level: none, data_gap: false } }
+  - { input: { hit_severities: [high, low], total_indicators: 14, unevaluated: 0, previous_level: elevated }, expect: { score: 45, level: elevated, data_gap: false } }
+  - { input: { hit_severities: [high], ml_score: 40, total_indicators: 14, unevaluated: 0, previous_level: elevated }, expect: { score: 40, level: elevated, data_gap: false } }
+  - { input: { hit_severities: [medium, medium], total_indicators: 14, unevaluated: 9 }, expect: { score: 40, level: watch, data_gap: true } }

@@ -1,0 +1,16 @@
+id: policy.review_calendar
+version: 2026.10.0
+status: unverified
+effective_from: 2026-04-01
+source:
+  title: "Periodic credit review frequency (bank policy, placeholder parameters)"
+  url: null
+  source_note: "Illustrative. Replace with the board-approved credit policy review cadence."
+rules:
+  review_interval_months: { CR1: 12, CR2: 12, CR3: 12, CR4: 6, CR5: 6, CR6: 3 }
+  default_interval_months: 6
+  watch_list_interval_months: 3
+tests:
+  - { input: { rating: CR2, last_review_on: 2026-01-31, today: 2026-06-01 }, expect: { next_review_due: 2027-01-31, overdue: false, days_overdue: 0 } }
+  - { input: { rating: CR5, last_review_on: 2026-01-31, today: 2026-08-15 }, expect: { next_review_due: 2026-07-31, overdue: true, days_overdue: 15 } }
+  - { input: { rating: CR1, last_review_on: 2026-01-31, today: 2026-05-01, watch_list: true }, expect: { next_review_due: 2026-04-30, overdue: true, days_overdue: 1 } }

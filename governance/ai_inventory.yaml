@@ -1,0 +1,122 @@
+# AI and model inventory (guide section 12). One entry per model, agent, prompt family and engine.
+# tests/unit/test_governance.py fails if an agent policy, a gateway use case or a model card is missing here.
+# validation_status values: not_validated | validated | validated_with_conditions. Nothing is validated yet.
+version: 1
+entries:
+  - id: ocr-pipeline
+    kind: pipeline
+    owner: credit-administration
+    risk_tier: 2
+    purpose: Read financial statements into spread lines with lineage
+    engine: outsourced OCR vendor behind OcrEngine (ADR 0004); rapidocr-onnx used as development engine
+    data_class: borrower_raw
+    human_checkpoint: reviewer confirms every figure not corroborated by an accounting identity
+    kill_switch: route all pages to manual spreading
+    card: docs/model-cards/ocr-pipeline.md
+    evidence: reports/ocr_accuracy.json
+    validation_status: not_validated
+  - id: ews-lgbm-m4
+    kind: ml_model
+    owner: credit-risk
+    risk_tier: 2
+    purpose: Rank obligors by near-term stress to focus analyst time
+    data_class: confidential
+    human_checkpoint: analyst reviews every alert; no automatic action
+    kill_switch: disable score; rules-only EWS continues
+    card: docs/model-cards/ews-model.md
+    evidence: reports/simulation_report.json
+    validation_status: not_validated
+  - id: breach-forecast-m6
+    kind: ml_model
+    owner: credit-risk
+    risk_tier: 2
+    purpose: Estimate chance of a covenant breach next test date
+    data_class: confidential
+    human_checkpoint: advisory only
+    kill_switch: disable forecast
+    card: docs/model-cards/breach-forecast.md
+    evidence: reports/simulation_report.json
+    validation_status: not_validated
+  - id: sanction_compiler
+    kind: agent
+    owner: credit-administration
+    risk_tier: 2
+    purpose: Draft a CTS from sanction documents
+    data_class: borrower_raw
+    human_checkpoint: CAD checker publishes
+    kill_switch: model_gateway.use_case.sanction_compiler.extract
+    card: docs/model-cards/agents.md
+    policy: agents/sanction_compiler/policy.yaml
+    llm_use_cases: [sanction_compiler.extract]
+    validation_status: not_validated
+  - id: covenant_agent
+    kind: agent
+    owner: credit-monitoring
+    risk_tier: 2
+    purpose: Propose consequences and draft a reservation-of-rights letter after a breach
+    data_class: confidential
+    human_checkpoint: monitoring officer decides and sends
+    kill_switch: model_gateway.use_case.covenant_agent.draft_letter
+    card: docs/model-cards/agents.md
+    policy: agents/covenant_agent/policy.yaml
+    llm_use_cases: [covenant_agent.draft_letter]
+    validation_status: not_validated
+  - id: ews_analyst
+    kind: agent
+    owner: credit-risk
+    risk_tier: 2
+    purpose: Explain an alert and propose a precaution at the critical level
+    data_class: confidential
+    human_checkpoint: monitoring officer (a different person from the agent's principal) decides
+    kill_switch: model_gateway.use_case.ews_analyst.memo
+    card: docs/model-cards/agents.md
+    policy: agents/ews_analyst/policy.yaml
+    llm_use_cases: [ews_analyst.memo]
+    validation_status: not_validated
+  - id: review_memo
+    kind: agent
+    owner: credit-risk
+    risk_tier: 2
+    purpose: Draft the narrative of a periodic review from a fact pack
+    data_class: confidential
+    human_checkpoint: reviewer and sanctioning authority
+    kill_switch: model_gateway.use_case.review_memo.draft
+    card: docs/model-cards/agents.md
+    policy: agents/review_memo/policy.yaml
+    llm_use_cases: [review_memo.draft]
+    validation_status: not_validated
+  - id: recovery_agent
+    kind: agent
+    owner: recovery
+    risk_tier: 3
+    purpose: Analyse a settlement offer and file a committee proposal
+    data_class: confidential
+    human_checkpoint: recovery head approves at delegated power
+    kill_switch: model_gateway.use_case.recovery_agent.draft
+    card: docs/model-cards/agents.md
+    policy: agents/recovery_agent/policy.yaml
+    llm_use_cases: [recovery_agent.draft]
+    validation_status: not_validated
+  - id: portfolio_qa
+    kind: llm_use_case
+    owner: credit-risk
+    risk_tier: 1
+    purpose: Answer portfolio questions from governed data (not built)
+    data_class: internal
+    human_checkpoint: read-only
+    kill_switch: model_gateway.use_case.portfolio_qa.answer
+    card: docs/model-cards/agents.md
+    llm_use_cases: [portfolio_qa.answer]
+    validation_status: not_validated
+    status: not_built
+  - id: ocr.structure_financials
+    kind: llm_use_case
+    owner: credit-administration
+    risk_tier: 2
+    purpose: Map statement labels to the chart of accounts (deterministic mapper primary)
+    data_class: borrower_raw
+    human_checkpoint: reviewer confirms unmapped rows
+    kill_switch: model_gateway.use_case.ocr.structure_financials
+    card: docs/model-cards/ocr-pipeline.md
+    llm_use_cases: [ocr.structure_financials]
+    validation_status: not_validated

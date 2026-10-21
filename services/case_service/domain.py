@@ -28,6 +28,9 @@ KIND_PERMISSION: dict[str, Permission] = {
     "limit_change": Permission.LIMIT_CHANGE,
     "deviation_clearance": Permission.DOC_DEVIATION_CLEAR,
     "stage_change": Permission.CASE_DECIDE,
+    "closure": Permission.CASE_DECIDE,
+    # classification as wilful defaulter is the same committee-level right as fraud classification
+    "wilful_defaulter_classification": Permission.RFA_CLASSIFY,
 }
 
 

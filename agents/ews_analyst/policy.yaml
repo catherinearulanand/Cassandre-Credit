@@ -1,0 +1,12 @@
+agent_id: ews_analyst
+version: 1
+owner: credit-risk
+risk_tier: 2
+workload_identity: spiffe://credit-platform/agents/ews_analyst
+tools_allowed: [ews.read_state, case.propose]
+tools_denied_examples: [limit.*, finacle.*, payments.*, borrower.send, rfa.classify, case.decide]
+max_tool_calls: 15
+data_scope: { obligor: assigned_case_only, data_classes: [confidential] }
+llm_use_cases: [ews_analyst.memo]
+human_checkpoint: { action: consequence.apply, role: credit_monitoring_officer, rule: "analyst proposes; officer decides" }
+kill_switch: model_gateway.use_case.ews_analyst.memo

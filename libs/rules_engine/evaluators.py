@@ -386,3 +386,69 @@ def ews_indicators(p: dict[str, Any], f: dict[str, Any]) -> tuple[Any, str, dict
 def covenant_library(p: dict[str, Any], f: dict[str, Any]) -> tuple[Any, str, dict[str, Any]]:
     c = p["covenants"][f["covenant"]]
     return c["operator"], c["name"], {"formula": c["formula"], "definitions": p["definitions"]}
+
+
+# ------------------------------------------------------------ alerting & reviews ---------
+@evaluator("ews.alerting")
+def ews_alerting(p: dict[str, Any], f: dict[str, Any]) -> tuple[Any, str, dict[str, Any]]:
+    """Fuse fired indicators and the model score into one score and level, with hysteresis so an
+    alert does not flap, and a data-gap flag when too many indicators could not be evaluated."""
+    points = p["severity_points"]
+    hits = f["hit_severities"]
+    if not isinstance(hits, list) or any(s not in points for s in hits):
+        raise ValidationFailure(
+            "hit_severities must name known severities", code="rule_fact_invalid"
+        )
+    rule_score = min(100, sum(int(points[s]) for s in hits))
+    ml = f.get("ml_score")
+    if ml is not None and (isinstance(ml, bool) or not 0 <= Decimal(str(ml)) <= 100):
+        raise ValidationFailure("ml_score must be between 0 and 100", code="rule_fact_invalid")
+    score = max(rule_score, int(Decimal(str(ml))) if ml is not None else 0)
+    levels = p["level_thresholds"]  # ordered low -> high
+    order = ["none"] + [str(r["level"]) for r in levels]
+    level = "none"
+    for row in levels:
+        if score >= int(row["min_score"]):
+            level = str(row["level"])
+    prev = f.get("previous_level")
+    if prev is not None and prev != "none":
+        if prev not in order:
+            raise ValidationFailure("unknown previous_level", code="rule_fact_invalid")
+        clear = int(next(r["clear_below"] for r in levels if r["level"] == prev))
+        if order.index(level) < order.index(prev) and score >= clear:
+            level = prev  # stay at the higher level until the score clears the lower bound
+    total = _count(f, "total_indicators")
+    unev = _count(f, "unevaluated")
+    gap = total > 0 and Decimal(unev) / Decimal(total) > Decimal(str(p["max_unevaluated_share"]))
+    return (
+        {"score": score, "level": level, "data_gap": gap},
+        f"score {score} level {level}" + ("; data gap" if gap else ""),
+        {"rule_score": rule_score, "ml_score": ml},
+    )
+
+
+def _add_months(d: date, months: int) -> date:
+    m = d.month - 1 + months
+    y, mo = d.year + m // 12, m % 12 + 1
+    import calendar
+
+    return date(y, mo, min(d.day, calendar.monthrange(y, mo)[1]))
+
+
+@evaluator("policy.review_calendar")
+def review_calendar(p: dict[str, Any], f: dict[str, Any]) -> tuple[Any, str, dict[str, Any]]:
+    rating = str(f["rating"])
+    months = int(p["review_interval_months"].get(rating, p["default_interval_months"]))
+    if _flag(f, "watch_list", default=False):
+        months = min(months, int(p["watch_list_interval_months"]))
+    last = _d(f["last_review_on"])
+    today = _d(f["today"])
+    if last > today:
+        raise ValidationFailure("last review is in the future", code="rule_fact_invalid")
+    due = _add_months(last, months)
+    late = max(0, (today - due).days)
+    return (
+        {"next_review_due": due.isoformat(), "overdue": late > 0, "days_overdue": late},
+        f"review every {months} months; due {due}",
+        {"interval_months": months},
+    )

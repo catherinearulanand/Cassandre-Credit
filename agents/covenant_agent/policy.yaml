@@ -1,0 +1,12 @@
+agent_id: covenant_agent
+version: 1
+owner: credit-monitoring
+risk_tier: 2
+workload_identity: spiffe://credit-platform/agents/covenant_agent
+tools_allowed: [covenant.read_result, rules.consequence_mode, case.propose]
+tools_denied_examples: [limit.*, finacle.*, payments.*, borrower.send, cts.*, case.decide]
+max_tool_calls: 20
+data_scope: { obligor: assigned_case_only, data_classes: [confidential] }
+llm_use_cases: [covenant_agent.draft_letter]
+human_checkpoint: { action: letter.send, role: credit_monitoring_officer, rule: "a named officer sends; the agent only drafts" }
+kill_switch: model_gateway.use_case.covenant_agent.draft_letter
