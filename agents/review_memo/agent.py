@@ -10,7 +10,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from agents.runtime import AgentResult, AgentRun, draft_narrative, load_prompt
+from agents.runtime import AgentResult, AgentRun, closing, draft_narrative, load_prompt
 
 HERE = Path(__file__).parent
 MAX_MISSING = 3
@@ -23,6 +23,7 @@ def _template(f: dict[str, str]) -> str:
     return " ".join(lines)
 
 
+@closing
 def run(agent_run: AgentRun, *, obligor_id: str, llm: Any | None = None) -> AgentResult:
     out = AgentResult(agent_run)
     pack = agent_run.call("review.read_pack", obligor_id=obligor_id)

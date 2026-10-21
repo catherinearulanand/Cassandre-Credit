@@ -20,16 +20,24 @@ from rapidfuzz import fuzz
 _SUFFIX = re.compile(
     r"\b(private|pvt|public|limited|ltd|llp|co|company|corporation|corp|industries|india)\b"
 )
-_PUNCT = re.compile(r"[^a-z0-9 ]+")
 
 Basis = Literal["pan", "cin", "lei", "gstin", "name"]
 
 
 def normalise_name(name: str) -> str:
-    s = unicodedata.normalize("NFKC", name).casefold()
-    s = _PUNCT.sub(" ", s)
-    s = _SUFFIX.sub(" ", s)
-    return " ".join(s.split())
+    folded = unicodedata.normalize("NFKC", name).casefold()
+    kept = "".join(c if unicodedata.category(c)[0] in "LMN" else " " for c in folded)
+    stripped = " ".join(_SUFFIX.sub(" ", kept).split())
+    # a name made only of suffix words ("India Industries Limited") is compared as written
+    return stripped or " ".join(kept.split())
+
+
+def _initials_match(short: str, full: str) -> bool:
+    """ "r k iyer" matches "ramesh kumar iyer": single-letter tokens stand for name starts."""
+    a, b = short.split(), full.split()
+    if len(a) != len(b) or not a or a[-1] != b[-1]:
+        return False
+    return all(x == y or (len(x) == 1 and y.startswith(x)) for x, y in zip(a, b, strict=True))
 
 
 @dataclass(frozen=True)
@@ -70,20 +78,38 @@ class EntityIndex:
     _by_gstin: dict[str, str] = field(default_factory=dict)
 
     def add(self, o: Obligor) -> None:
+        """Validate and check every identifier first, then write: a failure leaves no trace."""
+        for label, val, ok in (
+            ("PAN", o.pan, is_valid_pan),
+            ("CIN", o.cin, is_valid_cin),
+            ("LEI", o.lei, is_valid_lei),
+        ):
+            if val and not ok(val):
+                raise ValueError(f"{label} {val!r} is malformed")
+        for g in o.gstins:
+            if not is_valid_gstin(g):
+                raise ValueError(f"GSTIN {g!r} is malformed")
+            if g[2:12] != o.pan:
+                raise ValueError(f"GSTIN {g} does not embed the obligor's PAN")
         for table, key, label in (
             (self._by_pan, o.pan, "PAN"),
             (self._by_cin, o.cin, "CIN"),
             (self._by_lei, o.lei, "LEI"),
         ):
-            if key:
-                other = table.get(key)
-                if other is not None and other != o.obligor_id:
-                    raise ValueError(f"{label} {key} already belongs to {other}")
-                table[key] = o.obligor_id
+            other = table.get(key) if key else None
+            if other is not None and other != o.obligor_id:
+                raise ValueError(f"{label} {key} already belongs to {other}")
         for g in o.gstins:
             other = self._by_gstin.get(g)
             if other is not None and other != o.obligor_id:
                 raise ValueError(f"GSTIN {g} already belongs to {other}")
+        for table in (self._by_pan, self._by_cin, self._by_lei, self._by_gstin):
+            for k in [k for k, v in table.items() if v == o.obligor_id]:
+                del table[k]  # a re-add replaces the old identifiers
+        for table, key in ((self._by_pan, o.pan), (self._by_cin, o.cin), (self._by_lei, o.lei)):
+            if key:
+                table[key] = o.obligor_id
+        for g in o.gstins:
             self._by_gstin[g] = o.obligor_id
         self.obligors[o.obligor_id] = o
 
@@ -106,6 +132,8 @@ class EntityIndex:
         ):
             if val and val in table:
                 hits.setdefault(table[val], []).append(basis)  # type: ignore[arg-type]
+        if q.gstin and q.gstin[2:12] in self._by_pan and not q.pan:
+            hits.setdefault(self._by_pan[q.gstin[2:12]], []).append("pan")
         # A GSTIN carries the holder's PAN: if it disagrees with the PAN supplied, that is a conflict.
         if q.gstin and q.pan and q.gstin[2:12] != q.pan:
             return Resolution(
@@ -120,6 +148,21 @@ class EntityIndex:
         if len(hits) == 1:
             oid, bases = next(iter(hits.items()))
             ob = self.obligors[oid]
+            for label, supplied, stored in (
+                ("PAN", q.pan, ob.pan),
+                ("CIN", q.cin, ob.cin),
+                ("LEI", q.lei, ob.lei),
+            ):
+                if supplied and stored and supplied != stored:
+                    return Resolution(
+                        "conflict",
+                        (Match(oid, bases[0], 100, False),),
+                        (f"{label} supplied differs from the one on record",),
+                    )
+            if q.gstin and q.gstin not in ob.gstins and q.gstin[2:12] != ob.pan:
+                return Resolution(
+                    "conflict", (Match(oid, bases[0], 100, False),), ("GSTIN embeds another PAN",)
+                )
             if (
                 q.name
                 and fuzz.token_set_ratio(normalise_name(q.name), normalise_name(ob.legal_name)) < 60
@@ -161,5 +204,8 @@ class EntityIndex:
     def is_related_payee(self, obligor_id: str, payee_name: str, threshold: int = 88) -> bool:
         pn = normalise_name(payee_name)
         return any(
-            fuzz.token_set_ratio(pn, n) >= threshold for n in self.related_party_names(obligor_id)
+            fuzz.token_set_ratio(pn, n) >= threshold
+            or _initials_match(pn, n)
+            or _initials_match(n, pn)
+            for n in self.related_party_names(obligor_id)
         )

@@ -46,6 +46,7 @@ entries:
     human_checkpoint: CAD checker publishes
     kill_switch: model_gateway.use_case.sanction_compiler.extract
     card: docs/model-cards/agents.md
+    checkpoint_role: cad_checker
     policy: agents/sanction_compiler/policy.yaml
     llm_use_cases: [sanction_compiler.extract]
     validation_status: not_validated
@@ -58,6 +59,7 @@ entries:
     human_checkpoint: monitoring officer decides and sends
     kill_switch: model_gateway.use_case.covenant_agent.draft_letter
     card: docs/model-cards/agents.md
+    checkpoint_role: credit_monitoring_officer
     policy: agents/covenant_agent/policy.yaml
     llm_use_cases: [covenant_agent.draft_letter]
     validation_status: not_validated
@@ -70,6 +72,7 @@ entries:
     human_checkpoint: monitoring officer (a different person from the agent's principal) decides
     kill_switch: model_gateway.use_case.ews_analyst.memo
     card: docs/model-cards/agents.md
+    checkpoint_role: credit_monitoring_officer
     policy: agents/ews_analyst/policy.yaml
     llm_use_cases: [ews_analyst.memo]
     validation_status: not_validated
@@ -82,6 +85,7 @@ entries:
     human_checkpoint: reviewer and sanctioning authority
     kill_switch: model_gateway.use_case.review_memo.draft
     card: docs/model-cards/agents.md
+    checkpoint_role: sanctioning_authority
     policy: agents/review_memo/policy.yaml
     llm_use_cases: [review_memo.draft]
     validation_status: not_validated
@@ -94,6 +98,7 @@ entries:
     human_checkpoint: recovery head approves at delegated power
     kill_switch: model_gateway.use_case.recovery_agent.draft
     card: docs/model-cards/agents.md
+    checkpoint_role: recovery_head
     policy: agents/recovery_agent/policy.yaml
     llm_use_cases: [recovery_agent.draft]
     validation_status: not_validated

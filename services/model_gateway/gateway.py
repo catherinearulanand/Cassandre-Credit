@@ -19,7 +19,7 @@ import re
 import time
 import unicodedata
 from collections import defaultdict, deque
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from decimal import Decimal
 from pathlib import Path
 from typing import Any, Protocol
@@ -273,7 +273,11 @@ class ModelGateway:
             system, user = build_prompt(req, data_texts, red.apply(req.instruction))
             t0 = time.perf_counter()
             try:
-                reply, parsed = self._call_with_repair(provider, model, system, user, req)
+                # `context` is not screened or redacted, so it never leaves the process.
+                call_req = (
+                    req if pcfg.get("kind") == "deterministic_local" else replace(req, context={})
+                )
+                reply, parsed = self._call_with_repair(provider, model, system, user, call_req)
                 text = red.restore(reply.text)
                 if parsed is not None and red.redacted:
                     parsed = _restore_tree(parsed, red.restore)

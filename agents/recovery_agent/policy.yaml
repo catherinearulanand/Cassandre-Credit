@@ -5,6 +5,7 @@ risk_tier: 3
 workload_identity: spiffe://credit-platform/agents/recovery_agent
 tools_allowed: [recovery.analyse_ots, case.propose]
 tools_denied_examples: [limit.*, finacle.*, payments.*, borrower.send, rfa.classify, wilful.*, case.decide]
+propose_kinds: [ots]
 max_tool_calls: 10
 data_scope: { obligor: assigned_case_only, data_classes: [confidential] }
 llm_use_cases: [recovery_agent.draft]

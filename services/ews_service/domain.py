@@ -109,7 +109,9 @@ class EwsService:
                     model_version=ml.model_version if ml else "rules-only",
                 ),
             )
-        if new.level in _SEVERITY and (new.level != prior.level or new.data_gap != prior.data_gap):
+        if (new.level in _SEVERITY or new.data_gap) and (
+            new.level != prior.level or new.data_gap != prior.data_gap
+        ):
             sig = self._signal(new, ml)
             self._emit(
                 "signal.raised",
@@ -139,7 +141,7 @@ class EwsService:
             obligor_id=s.obligor_id,
             source="ews_service",
             signal_type="ews_data_gap" if s.data_gap else "ews_level",
-            severity=_SEVERITY[s.level],
+            severity=_SEVERITY.get(s.level, SignalSeverity.MEDIUM),
             score=s.score,
             raised_at=self.clock.now(),
             valid_at=self.clock.today(),
@@ -154,11 +156,12 @@ class EwsService:
         if capacity < 1:
             raise ValidationFailure("capacity must be at least 1")
         live = sorted(
-            (s for s in self.state.values() if s.level != "none"),
+            (s for s in self.state.values() if s.level != "none" or s.data_gap),
             key=lambda s: (-s.score, s.obligor_id),
         )
         return {
             "shown": [s.obligor_id for s in live[:capacity]],
+            "data_gap_obligors": [s.obligor_id for s in live if s.data_gap],
             "not_shown": len(live) - min(len(live), capacity),
             "total_alerts": len(live),
         }

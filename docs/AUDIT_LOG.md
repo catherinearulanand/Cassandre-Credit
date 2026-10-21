@@ -102,3 +102,50 @@ correctness on stressed obligors or non-trivial forecasting skill. Several headl
 | F22 | Medium | Covenant and gate "100%" prove little | Partly addressed (oracle policy, exactness). It remains a regression test on a shared formula library; independent semantics for `prior`, `avg`, half-yearly and consolidated tests are not built |
 | F23 | Medium | Docs claimed things not in the repository | Fixed: security principle 5 and pricing claims corrected |
 | F24 | Low | NaN written into JSON | Fixed: strict JSON |
+
+## Round 3 — Phase 2 review (monitoring, classification, RFA, EWS, entity resolution, vendor OCR)
+
+**Reviewer:** Head of Credit Monitoring and Regulatory Reporting Systems (SMA/NPA, CRILC, fraud-risk governance; former internal-audit lead on RBI inspections).
+**Verdict:** FAIL at the gate. Two Critical and six High findings, all reproduced. All are fixed with a regression test in `tests/unit/test_phase2_regressions.py` unless marked.
+
+| ID | Sev | Defect | Status |
+|---|---|---|---|
+| P2-01 | Critical | A show-cause could be backdated, so the 21-day window read as elapsed on day 0 | Fixed: dated between file opening and today; document reference and issuer required |
+| P2-02 | Critical | New allegations rode an old notice; a decided file could never be reopened | Fixed: new evidence resets the notice; a pending decision blocks new evidence; `close_file` lets a fresh file open |
+| P2-03 | High | A same-day placeholder response unlocked the committee | Fixed: document reference and recorder required |
+| P2-04 | High | Amendments with the same CTS id changed nothing (ids hashed the CTS id) | Fixed: ids are obligor + type + period; due dates updated in place; removed open items waived |
+| P2-05 | High | A new CTS id duplicated received items and hid overdue ones | Fixed: rows carry over status, document and chase history |
+| P2-06 | High | A data blackout read as "clear" and was invisible in the queue | Fixed: a data-gap signal and queue entry |
+| P2-07 | High | NPA age defaulted to 0 months, so provisioning could be understated | Fixed: age derived from `npa_since` and the clock; unknown age is refused |
+| P2-08 | High | A contradictory "arrears cleared" flag upgraded an NPA | Fixed: refused while days past due remain. **Open policy question:** no probation after a cure |
+| P2-09 | Medium | A failed `EntityIndex.add` left ghost identifiers that crashed `resolve` | Fixed: validate, then write; re-add replaces |
+| P2-10 | Medium | A contradictory CIN/LEI/PAN still resolved as "certain" | Fixed: conflict |
+| P2-11 | Medium | Related-party screening missed suffix-only, non-Latin and initial-only names | Fixed. Look-alike false candidates remain by design: a human confirms |
+| P2-12 | Medium | Chase skipped steps; any document satisfied any obligation | Fixed: each step is recorded; obligor, type and period must match |
+| P2-13 | Medium | A late but cured perfection left no record; a second `require` was ignored | Fixed |
+| P2-14 | Medium | Vendor OCR: overflow escaped unaudited; loose coercion; empty page accepted; unbounded policy numbers | Fixed |
+| P2-15 | Low | NaN model score, unknown obligor reported "not reportable", blank indicators | Fixed |
+| P2-16 | Medium | The lifecycle test hand-wrote the gate's context and several asserts were vacuous | Fixed: the gate now reads the SMA, RFA and case services |
+
+## Round 3 — Phase 3 review (agents, runtime, workflow services, governance)
+
+**Reviewer:** Head of AI Risk and Agentic Systems Security (LLM red-teamer).
+**Verdict:** FAIL at the gate. Two Critical, eight High. Fixed with regression tests in `tests/unit/test_agents.py`, `test_phase3_regressions.py` and `test_model_gateway.py` unless marked.
+
+| ID | Sev | Defect | Status |
+|---|---|---|---|
+| F1 | Critical | Facts never reached the model, and the side channel (`context`) skipped the injection screen and redaction | Fixed: facts are screened data blocks; the gateway drops `context` for any non-local provider |
+| F2 | Critical | `verify_numbers` passed `250bps`, `₹5crore`, `-35%`, ranges, ids, number words, scaled and re-united values | Fixed: units are part of the match, nothing is exempt, number words must appear in a fact |
+| F3 | High | No semantic guard: a letter could waive the covenant | Fixed: concession screen and required wording. Pattern checks, not proof |
+| F4 | High | An agent could propose any kind regardless of its policy | Fixed: `propose_kinds` |
+| F5 | High | Scope was fixed per run, not per resource named in a call | Fixed in the runtime via a resolver. **Open:** `CaseService.propose` itself does no scope check |
+| F6 | High | Identity stamping depended on the tool's label; undeclared kwargs accepted | Fixed |
+| F7 | High | Closure ignored dues on unnamed facilities, never re-checked, was repeatable | Fixed (repayment date is still caller-asserted; **open**: source it from the ledger port) |
+| F8 | High | OTS and limit approvals could never succeed (amount never passed) | Fixed: amount taken from the proposal; delegated power now exercised |
+| F9 | High | Wilful designation accepted a forged status dict and weak date checks | Fixed: status derived from evidence, evidence in the payload, strict booleans and dates |
+| F10 | Medium | A late or backdated plan erased the deadline breach | Fixed |
+| F11 | Medium | Free text could enter the review pack and launder numbers | Fixed: allow-listed, typed fields |
+| F12 | Medium | Failed calls not audited or budgeted; crashed runs not finished | Fixed |
+| F13 | Medium | Compensation exemption had no reason or evidence | Fixed |
+| F14 | Low | Vacuous or circular tests | Fixed |
+| F15 | Medium | Governance test could be satisfied without a real validation | Strengthened: report fields, role and data-class cross-checks. **Open:** reports are not cryptographically signed |

@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import date
+from types import MappingProxyType
 from typing import Any
 
 from authz import ApprovalRecord, MakerChecker, Permission
@@ -41,6 +42,18 @@ class ClosureFacts:
     open_drawdown_requests: int
     repaid_on: date
 
+    def __post_init__(self) -> None:
+        ids = set(self.facility_ids)
+        if len(ids) != len(self.facility_ids):
+            raise ValidationFailure("duplicate facility ids", code="bad_closure_facts")
+        for name in ("outstanding_paise", "contingent_paise"):
+            table = getattr(self, name)
+            if set(table) != ids:  # dues on a facility that was not named must not be ignorable
+                raise ValidationFailure(
+                    f"{name} must have exactly the named facilities", code="bad_closure_facts"
+                )
+            object.__setattr__(self, name, MappingProxyType(dict(table)))
+
 
 @dataclass
 class ClosureFile:
@@ -51,6 +64,8 @@ class ClosureFile:
     proposal_id: str | None = None
     payload: dict[str, Any] = field(default_factory=dict)
     released_on: date | None = None
+    completed: bool = False
+    action_dates: dict[str, date] = field(default_factory=dict)
     delay_reason: str | None = None
 
 
@@ -91,20 +106,14 @@ class ClosureService:
         proposer_kind: str,
         on_behalf_of: str | None,
     ) -> ClosureFile:
+        if case_id in self.files:
+            raise ConflictError("a closure proposal already exists for this case")
         blockers = self.blockers(facts)
         if blockers:
             raise ConflictError("closure blocked: " + "; ".join(blockers), code="closure_blocked")
         if facts.repaid_on > self.clock.today():
             raise ValidationFailure("repayment date is in the future")
-        proof = content_hash(
-            {
-                "obligor": facts.obligor_id,
-                "facilities": sorted(facts.facility_ids),
-                "outstanding": dict(sorted(facts.outstanding_paise.items())),
-                "contingent": dict(sorted(facts.contingent_paise.items())),
-                "repaid_on": facts.repaid_on.isoformat(),
-            }
-        )
+        proof = self._proof(facts)
         payload = {
             "facility_ids": sorted(facts.facility_ids),
             "zero_dues_proof": proof,
@@ -122,17 +131,48 @@ class ClosureService:
         self.files[case_id] = cf
         return cf
 
-    def record_action(self, case_id: str, action: str, evidence_ref: str) -> None:
+    @staticmethod
+    def _proof(facts: ClosureFacts) -> str:
+        return content_hash(
+            {
+                "obligor": facts.obligor_id,
+                "facilities": sorted(facts.facility_ids),
+                "outstanding": dict(sorted(facts.outstanding_paise.items())),
+                "contingent": dict(sorted(facts.contingent_paise.items())),
+                "repaid_on": facts.repaid_on.isoformat(),
+            }
+        )
+
+    def record_action(
+        self, case_id: str, action: str, evidence_ref: str, done_on: date | None = None
+    ) -> None:
         if action not in RELEASE_ACTIONS:
             raise ValidationFailure(f"unknown release action {action!r}")
         if not evidence_ref.strip():
             raise ValidationFailure("evidence reference required")
-        self.files[case_id].actions_done[action] = evidence_ref
+        when = done_on or self.clock.today()
+        cf = self.files[case_id]
+        if when < cf.facts.repaid_on or when > self.clock.today():
+            raise ValidationFailure("release date must be between repayment and today")
+        cf.actions_done[action] = evidence_ref
+        cf.action_dates[action] = when
 
     def release_status(
-        self, case_id: str, *, attributable_to_lender: bool = True
+        self,
+        case_id: str,
+        *,
+        attributable_to_lender: bool = True,
+        reason: str | None = None,
+        evidence_ref: str | None = None,
     ) -> dict[str, Any]:
         cf = self.files[case_id]
+        if not attributable_to_lender:
+            if not (reason and reason.strip() and evidence_ref and evidence_ref.strip()):
+                raise ValidationFailure(
+                    "a delay not attributable to the lender needs a reason and evidence",
+                    code="exemption_unsupported",
+                )
+            cf.delay_reason = f"{reason} [{evidence_ref}]"
         facts: dict[str, Any] = {
             "repaid_on": cf.facts.repaid_on,
             "today": self.clock.today(),
@@ -148,9 +188,21 @@ class ClosureService:
             "rule_version": d.rule_version,
         }
 
-    def complete(self, case_id: str, *, approval: ApprovalRecord) -> AccountClosed:
-        """After the closure approval and every release action. Returns the event to publish."""
+    def complete(
+        self, case_id: str, *, approval: ApprovalRecord, current_facts: ClosureFacts
+    ) -> AccountClosed:
+        """After the closure approval and every release action, with facts read again now.
+        Returns the event to publish. Runs once."""
         cf = self.files[case_id]
+        if cf.completed:
+            raise ConflictError("closure already completed", code="already_completed")
+        stale = self.blockers(current_facts)
+        if stale or self._proof(current_facts) != cf.proof:
+            raise ConflictError(
+                "dues or facts changed since the closure was approved: "
+                + ("; ".join(stale) or "proof differs"),
+                code="closure_facts_changed",
+            )
         missing = [a for a in RELEASE_ACTIONS if a not in cf.actions_done]
         if missing:
             raise ConflictError(
@@ -160,7 +212,8 @@ class ClosureService:
         self.mc.verify(approval, cf.payload, required=Permission.CASE_DECIDE)
         if not approval.subject.endswith(f":{cf.proposal_id}") or approval.action != "closure":
             raise ConflictError("approval is for a different proposal", code="approval_mismatch")
-        cf.released_on = self.clock.today()
+        cf.released_on = max(cf.action_dates.values())
+        cf.completed = True
         return AccountClosed(
             facility_ids=sorted(cf.facts.facility_ids),
             zero_dues_proof=cf.proof,

@@ -5,6 +5,7 @@ risk_tier: 2
 workload_identity: spiffe://credit-platform/agents/covenant_agent
 tools_allowed: [covenant.read_result, rules.consequence_mode, case.propose]
 tools_denied_examples: [limit.*, finacle.*, payments.*, borrower.send, cts.*, case.decide]
+propose_kinds: [consequence, letter]
 max_tool_calls: 20
 data_scope: { obligor: assigned_case_only, data_classes: [confidential] }
 llm_use_cases: [covenant_agent.draft_letter]

@@ -216,10 +216,19 @@ def wilful(p: dict[str, Any], f: dict[str, Any]) -> tuple[Any, str, dict[str, An
         return "NOT_ELIGIBLE", "outstanding below threshold", {}
     if not f.get("show_cause_issued_on"):
         return "SHOW_CAUSE_REQUIRED", "identification committee must issue show-cause", {}
-    window_end = _d(f["show_cause_issued_on"]) + timedelta(days=int(p["response_days"]))
-    if _d(f["today"]) < window_end and not f.get("response_received_on"):
+    issued, today = _d(f["show_cause_issued_on"]), _d(f["today"])
+    if issued > today:
+        raise ValidationFailure("show-cause issued in the future", code="rule_fact_invalid")
+    window_end = issued + timedelta(days=int(p["response_days"]))
+    if f.get("response_received_on"):
+        received = _d(f["response_received_on"])
+        if received < issued or received > today:
+            raise ValidationFailure(
+                "response date outside the notice period", code="rule_fact_invalid"
+            )
+    elif today < window_end:
         return "AWAITING_RESPONSE", f"response window until {window_end}", {}
-    if not f.get("review_committee_confirmed"):
+    if not _flag(f, "review_committee_confirmed", default=False):
         return "REVIEW_COMMITTEE_REQUIRED", "review committee must confirm", {}
     return "MAY_CLASSIFY", "all natural-justice steps complete", {}
 
@@ -401,8 +410,13 @@ def ews_alerting(p: dict[str, Any], f: dict[str, Any]) -> tuple[Any, str, dict[s
         )
     rule_score = min(100, sum(int(points[s]) for s in hits))
     ml = f.get("ml_score")
-    if ml is not None and (isinstance(ml, bool) or not 0 <= Decimal(str(ml)) <= 100):
-        raise ValidationFailure("ml_score must be between 0 and 100", code="rule_fact_invalid")
+    if ml is not None:
+        try:
+            ok = not isinstance(ml, bool) and 0 <= Decimal(str(ml)) <= 100
+        except ArithmeticError:
+            ok = False
+        if not ok:
+            raise ValidationFailure("ml_score must be between 0 and 100", code="rule_fact_invalid")
     score = max(rule_score, int(Decimal(str(ml))) if ml is not None else 0)
     levels = p["level_thresholds"]  # ordered low -> high
     order = ["none"] + [str(r["level"]) for r in levels]

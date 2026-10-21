@@ -14,11 +14,12 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass, field
+from datetime import date
 from typing import Any
 
 from events.catalogue import Payload, SmaChanged, StageChanged
 from platform_core.clock import Clock
-from platform_core.errors import ValidationFailure
+from platform_core.errors import NotFoundError, ValidationFailure
 from rules_engine import RuleLoadError, RuleRegistry
 
 Emit = Callable[[str, Payload], None]
@@ -35,7 +36,7 @@ class AccountSnapshot:
     outstanding_paise: int
     secured: bool
     arrears_cleared: bool = False  # every overdue amount (principal and interest) is paid
-    months_as_npa: int = 0
+    npa_since: date | None = None  # required the first time an account is seen as NPA
     loss_identified: bool = False
     credit_impaired: bool = False
     watch_list: bool = False
@@ -45,12 +46,17 @@ class AccountSnapshot:
     ews_score: int | None = None
 
     def __post_init__(self) -> None:
-        for name in ("dpd", "days_over_limit", "outstanding_paise", "months_as_npa"):
+        for name in ("dpd", "days_over_limit", "outstanding_paise"):
             v = getattr(self, name)
             if isinstance(v, bool) or not isinstance(v, int) or v < 0:
                 raise ValidationFailure(
                     f"{name} must be a non-negative integer", code="bad_snapshot"
                 )
+        if self.arrears_cleared and (self.dpd or self.days_over_limit):
+            raise ValidationFailure(
+                "arrears cannot be cleared while days past due or over limit remain",
+                code="bad_snapshot",
+            )
         if not self.account_id or not self.obligor_id:
             raise ValidationFailure("account and obligor ids are required", code="bad_snapshot")
 
@@ -72,6 +78,7 @@ class Classification:
 @dataclass
 class _State:
     bucket: str = "STANDARD"
+    npa_since: date | None = None
     stage: int = 1
     history: list[dict[str, Any]] = field(default_factory=list)
 
@@ -106,12 +113,24 @@ class SmaService:
         versions = {"rbi.sma": sma.rule_version}
         unverified = sma.pack_status != "verified"
         if bucket == "NPA":
+            since = (prior.npa_since if prior else None) or a.npa_since
+            if since is None:
+                raise ValidationFailure(
+                    "NPA age is unknown: supply npa_since the first time an account is NPA",
+                    code="npa_age_unknown",
+                )
+            today = self.clock.today()
+            if since > today:
+                raise ValidationFailure("npa_since is in the future", code="bad_snapshot")
+            months_npa = (today.year - since.year) * 12 + today.month - since.month
+            if today.day < since.day:
+                months_npa -= 1
             ir = self.rules.evaluate(
                 "rbi.irac",
                 {
                     # NPA by sticky state may have a lower DPD now; classification months drive the class
                     "dpd": max(a.dpd, a.days_over_limit, 91),
-                    "months_as_npa": a.months_as_npa,
+                    "months_as_npa": months_npa,
                     "loss_identified": a.loss_identified,
                     "secured": a.secured,
                 },
@@ -151,11 +170,15 @@ class SmaService:
             unverified,
             sma.explanation,
         )
-        self._record(a, cls)
+        self._record(a, cls, a.npa_since)
         return cls
 
-    def _record(self, a: AccountSnapshot, cls: Classification) -> None:
+    def _record(self, a: AccountSnapshot, cls: Classification, npa_since: date | None) -> None:
         st = self._state.setdefault(a.account_id, _State())
+        if cls.bucket == "NPA":
+            st.npa_since = st.npa_since or npa_since
+        else:
+            st.npa_since = None
         self._by_obligor.setdefault(a.obligor_id, set()).add(a.account_id)
         now = self.clock.now().isoformat()
         if cls.bucket != st.bucket:
@@ -205,6 +228,8 @@ class SmaService:
 
     def crilc_reportable(self, obligor_id: str, aggregate_exposure_paise: int) -> dict[str, Any]:
         """Reportable if exposure meets the threshold and any account is SMA or worse."""
+        if obligor_id not in self._by_obligor:
+            raise NotFoundError(f"no classified accounts for {obligor_id}")  # unknown is not clear
         view = self.borrower_view(obligor_id)
         d = self.rules.evaluate("rbi.crilc", {"aggregate_exposure_paise": aggregate_exposure_paise})
         stressed = _ORDER[view["worst_bucket"]] >= _ORDER["SMA-0"]

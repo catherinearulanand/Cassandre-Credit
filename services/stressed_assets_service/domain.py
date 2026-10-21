@@ -33,6 +33,7 @@ class StressFile:
     plan_implemented_on: date | None = None
     plan_payload: dict[str, Any] = field(default_factory=dict)
     plan_proposal_id: str | None = None
+    opened_on: date | None = None
     log: list[dict[str, Any]] = field(default_factory=list)
 
 
@@ -63,6 +64,7 @@ class StressedAssetService:
         f = StressFile(
             new_id("STR"), obligor_id, first_default_on, exposure_paise, scope, case.case_id
         )
+        f.opened_on = self.clock.today()
         f.log.append({"on": self.clock.today().isoformat(), "event": "opened"})
         self.files[f.file_id] = f
         return f
@@ -91,7 +93,11 @@ class StressedAssetService:
             "resolution_deadline": res["resolution_deadline"],
             "additional_provision_pct": res["additional_provision_pct"],
             "plan_implemented": f.plan_implemented_on is not None,
-            "deadline_missed": f.plan_implemented_on is None and self.clock.today() > deadline,
+            "deadline_missed": (
+                f.plan_implemented_on > deadline
+                if f.plan_implemented_on is not None
+                else self.clock.today() > deadline
+            ),
             "rule_version": d.rule_version,
             "pack_unverified": d.pack_status != "verified",
         }
@@ -133,7 +139,7 @@ class StressedAssetService:
         if not approval.subject.endswith(f":{f.plan_proposal_id}"):
             raise ConflictError("approval is for a different proposal", code="approval_mismatch")
         when = on or self.clock.today()
-        if when < f.first_default_on or when > self.clock.today():
+        if when < (f.opened_on or f.first_default_on) or when > self.clock.today():
             raise ValidationFailure("implementation date outside the file's life")
         f.plan_implemented_on = when
         f.log.append(

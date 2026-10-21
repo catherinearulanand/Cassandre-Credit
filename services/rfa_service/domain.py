@@ -37,6 +37,8 @@ class RfaFile:
     show_cause_issued_on: date | None = None
     response_received_on: date | None = None
     classification_proposal_id: str | None = None
+    closed: bool = False
+    needs_new_notice: bool = False
     events: list[dict[str, Any]] = field(default_factory=list)
 
 
@@ -58,12 +60,25 @@ class RfaService:
         ews_score: int | None = None,
     ) -> RfaFile:
         """Open (or return the existing) RFA file when evidence crosses the policy threshold."""
+        if any(not isinstance(i, str) or not i.strip() for i in indicators):
+            raise ValidationFailure("indicator names must be non-empty", code="rfa_bad_indicator")
         existing = self._open_by_obligor.get(obligor_id)
         if existing is not None:
             f = self.files[existing]
-            for i in indicators:
-                if i not in f.triggers:
-                    f.triggers.append(i)
+            new = [i for i in indicators if i not in f.triggers]
+            if new and f.classification_proposal_id is not None:
+                raise ConflictError(
+                    "a classification decision is pending: close this file before new evidence",
+                    code="rfa_decision_pending",
+                )
+            f.triggers.extend(new)
+            if new and f.show_cause_issued_on is not None:
+                # New allegations must be put to the borrower: the earlier notice does not cover them.
+                f.show_cause_issued_on = None
+                f.response_received_on = None
+                f.events.append(
+                    {"on": self.clock.today().isoformat(), "event": "notice_reset", "new": new}
+                )
             return f
         threshold = int(self.rules.params("rbi.rfa")["ews_score_rfa_threshold"])
         if not indicators and (ews_score is None or ews_score < threshold):
@@ -93,27 +108,59 @@ class RfaService:
         except KeyError as exc:
             raise NotFoundError(f"rfa {rfa_id}") from exc
 
-    def record_show_cause(self, rfa_id: str, issued_on: date | None = None) -> RfaFile:
+    def record_show_cause(
+        self, rfa_id: str, *, document_ref: str, by: str, issued_on: date | None = None
+    ) -> RfaFile:
+        """The notice must be dated inside the life of the file and name the document and the person."""
         f = self._get(rfa_id)
+        if f.closed:
+            raise ConflictError("file is closed")
         if f.show_cause_issued_on is not None:
             raise ConflictError("show-cause already recorded")
+        if not document_ref.strip() or not by.strip():
+            raise ValidationFailure("a show-cause needs a document reference and an issuer")
         when = issued_on or self.clock.today()
-        if when > self.clock.today():
-            raise ValidationFailure("show-cause cannot be dated in the future")
+        if when < f.opened_on or when > self.clock.today():
+            raise ValidationFailure("show-cause must be dated between the file opening and today")
         f.show_cause_issued_on = when
-        f.events.append({"on": when.isoformat(), "event": "show_cause_issued"})
+        f.events.append(
+            {"on": when.isoformat(), "event": "show_cause_issued", "doc": document_ref, "by": by}
+        )
         return f
 
-    def record_response(self, rfa_id: str, received_on: date | None = None) -> RfaFile:
+    def record_response(
+        self, rfa_id: str, *, document_ref: str, by: str, received_on: date | None = None
+    ) -> RfaFile:
         f = self._get(rfa_id)
         if f.show_cause_issued_on is None:
             raise ConflictError("no show-cause notice to respond to")
+        if not document_ref.strip() or not by.strip():
+            raise ValidationFailure("a response needs a document reference and a recorder")
         when = received_on or self.clock.today()
         if when < f.show_cause_issued_on or when > self.clock.today():
             raise ValidationFailure("response date outside the notice period")
         f.response_received_on = when
-        f.events.append({"on": when.isoformat(), "event": "response_received"})
+        f.events.append(
+            {"on": when.isoformat(), "event": "response_received", "doc": document_ref, "by": by}
+        )
         return f
+
+    def is_flagged(self, obligor_id: str) -> bool:
+        """True while an unclosed RFA file exists: this is what the drawdown gate reads."""
+        rid = self._open_by_obligor.get(obligor_id)
+        return rid is not None and not self.files[rid].closed
+
+    def close_file(self, rfa_id: str, *, reason: str, by: str) -> None:
+        """After the committee decision (or withdrawal). A later trigger opens a fresh file."""
+        f = self._get(rfa_id)
+        if not reason.strip() or not by.strip():
+            raise ValidationFailure("closing needs a reason and a person")
+        f.closed = True
+        f.events.append(
+            {"on": self.clock.today().isoformat(), "event": "closed", "reason": reason, "by": by}
+        )
+        if self._open_by_obligor.get(f.obligor_id) == rfa_id:
+            del self._open_by_obligor[f.obligor_id]
 
     def committee_ready(self, rfa_id: str) -> tuple[bool, str]:
         f = self._get(rfa_id)
@@ -173,5 +220,5 @@ class RfaService:
         return [
             f
             for f in self.files.values()
-            if f.classification_proposal_id is None and today > f.opened_on + timedelta(days=days)
+            if not f.closed and today > f.opened_on + timedelta(days=days)
         ]

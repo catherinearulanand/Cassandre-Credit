@@ -8,6 +8,7 @@ gap is visible in the memo instead of being smoothed over.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from datetime import date
 from typing import Any
@@ -58,6 +59,20 @@ REQUIRED_SECTIONS = (
 )
 
 
+_NUM = re.compile(r"-?\d{1,15}(\.\d{1,6})?")
+_SHAPES: dict[str, re.Pattern[str]] = {
+    "rating": re.compile(r"CR[1-6]"),
+    "sma_bucket": re.compile(r"STANDARD|SMA-[012]|NPA"),
+    "ews_level": re.compile(r"none|watch|elevated|critical"),
+    "latest_dscr": _NUM,
+    "latest_leverage": _NUM,
+    "open_breaches": re.compile(r"\d{1,4}"),
+    "overdue_obligations": re.compile(r"\d{1,4}"),
+    "utilisation_pct": _NUM,
+}
+_SOURCE = re.compile(r"[a-z_]{2,30}:[A-Za-z0-9._-]{1,60}(:[A-Za-z0-9._-]{1,60})*")
+
+
 class ReviewService:
     def __init__(self, clock: Clock, registry: RuleRegistry) -> None:
         self.clock, self.rules = clock, registry
@@ -90,16 +105,24 @@ class ReviewService:
         s.last_review_on = on
 
     def build_pack(self, obligor_id: str, inputs: dict[str, tuple[str, str]]) -> ReviewPack:
-        """``inputs`` maps a fact key to (value text, source reference). Required sections that are
-        absent are listed as missing; extra keys are accepted."""
+        """``inputs`` maps an allow-listed fact key to (value text, source reference). Each key has
+        a strict value shape, so free text (and any instruction inside it) cannot enter the pack.
+        Required sections that are absent are listed as missing."""
         facts = []
         for k, v in sorted(inputs.items()):
+            shape = _SHAPES.get(k)
+            if shape is None:
+                raise ValidationFailure(f"fact {k!r} is not an allowed pack field", code="bad_fact")
             if (
                 not isinstance(v, tuple)
                 or len(v) != 2
                 or not all(isinstance(x, str) and x for x in v)
+                or not shape.fullmatch(v[0])
+                or not _SOURCE.fullmatch(v[1])
             ):
-                raise ValidationFailure(f"fact {k!r} needs a value and a source", code="bad_fact")
+                raise ValidationFailure(
+                    f"fact {k!r} has an invalid value or source", code="bad_fact"
+                )
             facts.append(Fact(k, v[0], v[1]))
         missing = tuple(s for s in REQUIRED_SECTIONS if s not in inputs)
         h = content_hash(

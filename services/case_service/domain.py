@@ -13,7 +13,14 @@ from datetime import datetime, timedelta
 from enum import StrEnum
 from typing import Any
 
-from authz import ApprovalRecord, MakerChecker, Permission, Principal, ResourceScope
+from authz import (
+    MONEY_PERMISSIONS,
+    ApprovalRecord,
+    MakerChecker,
+    Permission,
+    Principal,
+    ResourceScope,
+)
 from domain.entities import CaseType
 from platform_core.clock import Clock
 from platform_core.errors import ConflictError, NotFoundError
@@ -32,6 +39,10 @@ KIND_PERMISSION: dict[str, Permission] = {
     # classification as wilful defaulter is the same committee-level right as fraud classification
     "wilful_defaulter_classification": Permission.RFA_CLASSIFY,
 }
+
+
+# Proposal kinds that move money state the amount in the payload under this key.
+AMOUNT_KEY: dict[str, str] = {"ots": "offer_paise", "limit_change": "amount_paise"}
 
 
 class CaseState(StrEnum):
@@ -174,6 +185,13 @@ class CaseService:
         if p.status != "pending":
             raise ConflictError(f"proposal already {p.status}")
         if approve:
+            amount: int | None = None
+            if p.required_permission in MONEY_PERMISSIONS:
+                amount = p.payload.get(AMOUNT_KEY.get(p.kind, ""))
+                if isinstance(amount, bool) or not isinstance(amount, int):
+                    raise ConflictError(
+                        f"a {p.kind} proposal must state its amount in paise", code="amount_missing"
+                    )
             p.approval = self.mc.approve(
                 subject=f"{case_id}:{proposal_id}",
                 subject_payload=p.payload,
@@ -184,6 +202,7 @@ class CaseService:
                 reason=reason,
                 scope=case.scope,
                 maker_on_behalf_of=p.on_behalf_of,
+                amount_paise=amount,
             )
             p.status = "approved"
         else:

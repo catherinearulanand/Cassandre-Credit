@@ -5,6 +5,7 @@ risk_tier: 2
 workload_identity: spiffe://credit-platform/agents/ews_analyst
 tools_allowed: [ews.read_state, case.propose]
 tools_denied_examples: [limit.*, finacle.*, payments.*, borrower.send, rfa.classify, case.decide]
+propose_kinds: [consequence]
 max_tool_calls: 15
 data_scope: { obligor: assigned_case_only, data_classes: [confidential] }
 llm_use_cases: [ews_analyst.memo]

@@ -26,7 +26,10 @@ python -m tools.pricing_model           # cost-to-serve and price corridor (plac
 | OCR pipeline for financial statements | Built; **v3 release gate currently FAILS on coverage** (zero wrong figures auto-accepted, but layout B is read at 30%). See `docs/OCR_ACCURACY.md` | `reports/ocr_accuracy.json` |
 | EWS and breach forecast models | Built; validated out of time on **synthetic** data only | `reports/simulation_report.json` |
 | Postgres, Kafka, Neo4j, Temporal, Feast adapters; UI; real Finacle | **Not built** (ports and in-memory adapters exist, ADR 0002) | |
-| Monitoring calendar, SMA service, RFA, documentation agent, review, recovery, closure workflows | **Rules and clocks exist; services and workflows not built** | |
+| Monitoring calendar, SMA/ECL, entity resolution, RFA, EWS service, perfection, stressed assets, recovery, closure, review | Built as domain services with ports; reviewed twice by independent red-teams (`docs/AUDIT_LOG.md`, round 3). **No persistence, API or UI** | `tests/unit/test_phase2_*`, `test_phase3_*` |
+| Agents (covenant, EWS analyst, review memo, recovery) and hardened runtime | Built; propose-only, number-bound drafts, template fallback. **LLM drafting not measured** | `docs/model-cards/agents.md` |
+| Outsourced OCR port | Built (ADR 0004); needs a vendor adapter, per-vendor calibration and a bake-off on real scans | `ocr/pipeline/vendor.py` |
+| AI inventory, model cards, validation pack | Built; **nothing is validated** | `governance/`, `docs/VALIDATION_PACK.md` |
 
 ## What the numbers do and do not prove
 

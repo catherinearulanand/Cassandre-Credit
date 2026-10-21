@@ -44,6 +44,8 @@ class PerfectionService:
             raise ValidationFailure("charge creation date is in the future")
         key = (collateral_id, item)
         if key in self.items:
+            if self.items[key].created_on != created_on:
+                raise ConflictError("item already tracked with a different creation date")
             return self.items[key]
         self.items[key] = PerfectionItem(collateral_id, item, created_on)
         return self.items[key]
@@ -58,6 +60,19 @@ class PerfectionService:
         if it.done_on is not None:
             raise ConflictError("already completed")
         it.done_on = done_on
+        st = self.status(collateral_id, item)
+        if st["status"].startswith(("LATE",)):
+            self._emit(
+                "perfection.overdue",
+                PerfectionOverdue(
+                    collateral_id=collateral_id,
+                    item=item,
+                    due_date=st["due_date"],
+                    days_overdue=int(st["days_late"]),
+                    rule_id=st["rule_id"],
+                    rule_version=st["rule_version"],
+                ),
+            )
 
     def status(self, collateral_id: str, item: str) -> dict[str, Any]:
         it = self.items[(collateral_id, item)]

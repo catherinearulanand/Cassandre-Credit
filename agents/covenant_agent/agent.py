@@ -11,7 +11,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from agents.runtime import AgentResult, AgentRun, draft_narrative, load_prompt
+from agents.runtime import AgentResult, AgentRun, closing, draft_narrative, load_prompt
 
 HERE = Path(__file__).parent
 _BREACH = {"BREACHED"}
@@ -37,6 +37,7 @@ def _template(f: dict[str, str]) -> str:
     )
 
 
+@closing
 def run(
     agent_run: AgentRun,
     *,
@@ -73,6 +74,7 @@ def run(
         instruction=instruction,
         facts=facts,
         template=_template,
+        required_phrases=("reserves all",),
     )
     out.drafts["reservation_of_rights"] = draft
     p = agent_run.call(

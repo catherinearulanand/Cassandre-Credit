@@ -13,6 +13,7 @@ from __future__ import annotations
 import hashlib
 import io
 import math
+import unicodedata
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any, Protocol
@@ -72,6 +73,12 @@ class VendorPolicy:
             problems.append("sub-processors must be disclosed")
         if self.confidence_scale not in (1.0, 100.0):
             problems.append("confidence_scale must be 1 or 100")
+        if not (0 < self.timeout_s <= 120):
+            problems.append("timeout must be between 0 and 120 seconds")
+        if not (0 < self.max_words <= 100_000):
+            problems.append("max_words must be between 1 and 100000")
+        if not (0 < self.max_image_bytes <= 50_000_000):
+            problems.append("max_image_bytes must be between 1 and 50 MB")
         if problems:
             raise VendorPolicyViolation("; ".join(problems))
 
@@ -79,16 +86,33 @@ class VendorPolicy:
 AuditHook = Callable[[dict[str, Any]], None]
 
 
+def _num(v: Any) -> float:
+    """A real JSON number. Booleans, strings and absurd magnitudes are contract violations."""
+    if isinstance(v, bool) or not isinstance(v, (int, float)):
+        raise VendorContractViolation("expected a number")
+    try:
+        f = float(v)
+    except OverflowError as exc:
+        raise VendorContractViolation("number out of range") from exc
+    if not math.isfinite(f) or abs(f) > 1e9:
+        raise VendorContractViolation("number out of range")
+    return f
+
+
 def _box(raw: Any) -> tuple[float, float, float, float]:
     """Accept [x0,y0,x1,y1], {x0..y1} or a polygon [[x,y],...]. Anything else is a violation."""
     try:
         if isinstance(raw, dict):
-            return (float(raw["x0"]), float(raw["y0"]), float(raw["x1"]), float(raw["y1"]))
-        if raw and isinstance(raw[0], (list, tuple)):
-            xs = [float(p[0]) for p in raw]
-            ys = [float(p[1]) for p in raw]
+            return (_num(raw["x0"]), _num(raw["y0"]), _num(raw["x1"]), _num(raw["y1"]))
+        if isinstance(raw, str) or not isinstance(raw, (list, tuple)) or not raw:
+            raise VendorContractViolation("word box is missing or malformed")
+        if isinstance(raw[0], (list, tuple)):
+            xs = [_num(p[0]) for p in raw]
+            ys = [_num(p[1]) for p in raw]
             return (min(xs), min(ys), max(xs), max(ys))
-        x0, y0, x1, y1 = (float(v) for v in raw)
+        if len(raw) != 4:
+            raise VendorContractViolation("word box is missing or malformed")
+        x0, y0, x1, y1 = (_num(v) for v in raw)
         return (x0, y0, x1, y1)
     except (TypeError, ValueError, KeyError, IndexError) as exc:
         raise VendorContractViolation("word box is missing or malformed") from exc
@@ -127,16 +151,20 @@ class VendorOcrEngine:
         }
         try:
             reply = self._t.post(payload, timeout_s=self._p.timeout_s)
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001 - any transport failure fails closed
             entry["outcome"] = "unavailable"
             self._audit(entry)
-            raise VendorUnavailable(f"OCR vendor call failed: {type(exc).__name__}") from exc
+            raise VendorUnavailable(f"OCR vendor call failed: {type(exc).__name__}") from None
         try:
             words = self._parse(reply, image.width, image.height)
         except VendorContractViolation:
             entry["outcome"] = "contract_violation"
             self._audit(entry)
             raise
+        except Exception as exc:
+            entry["outcome"] = "contract_violation"
+            self._audit(entry)
+            raise VendorContractViolation("reply could not be parsed") from exc
         entry["outcome"] = "ok"
         entry["words"] = len(words)
         self._audit(entry)
@@ -148,18 +176,23 @@ class VendorOcrEngine:
             raise VendorContractViolation("reply has no word-level output")
         if len(raw_words) > self._p.max_words:
             raise VendorContractViolation("implausible number of words")
+        if not raw_words:
+            raise VendorContractViolation("empty reply for a page: treated as unreadable")
         slack = 0.02
         out: list[Word] = []
         for rw in raw_words:
             if not isinstance(rw, dict) or not isinstance(rw.get("text"), str):
                 raise VendorContractViolation("word without text")
-            text = rw["text"].strip()
+            text = "".join(
+                c for c in rw["text"] if unicodedata.category(c) not in ("Cc", "Cf")
+            ).strip()
+            if len(rw["text"]) > 200:
+                raise VendorContractViolation("implausibly long word")
             if not text:
                 continue
-            try:
-                conf = float(rw["confidence"]) / self._p.confidence_scale
-            except (KeyError, TypeError, ValueError) as exc:
-                raise VendorContractViolation("word without a numeric confidence") from exc
+            if "confidence" not in rw:
+                raise VendorContractViolation("word without a numeric confidence")
+            conf = _num(rw["confidence"]) / self._p.confidence_scale
             x0, y0, x1, y1 = _box(rw.get("box"))
             if not all(math.isfinite(v) for v in (x0, y0, x1, y1, conf)):
                 raise VendorContractViolation("non-finite geometry or confidence")

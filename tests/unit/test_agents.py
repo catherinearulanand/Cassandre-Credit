@@ -36,6 +36,10 @@ ROOT = Path(__file__).resolve().parents[2] / "agents"
 SCOPE = ResourceScope("WEST", "MIDCORP", "OBL-1")
 
 
+def RESOLVE(name: str, kwargs: dict) -> ResourceScope:  # type: ignore[type-arg]
+    return SCOPE
+
+
 @pytest.fixture
 def clk() -> FixedClock:
     return FixedClock(datetime(2026, 10, 21, 9, 0, tzinfo=UTC))
@@ -71,7 +75,7 @@ def _tools(cases: CaseService, extra: dict[str, ToolSpec] | None = None) -> dict
 
 def _run(agent: str, human: Principal, tools: dict[str, ToolSpec], emit=None) -> AgentRun:  # type: ignore[no-untyped-def]
     spec = AgentSpec.load(ROOT / agent / "policy.yaml")
-    return AgentRun(spec, human, SCOPE, tools, emit=emit)
+    return AgentRun(spec, human, RESOLVE, tools, emit=emit)
 
 
 # --------------------------------------------------------------------- runtime -------
@@ -133,7 +137,7 @@ def test_tool_call_budget(cases, human) -> None:  # type: ignore[no-untyped-def]
     spec = AgentSpec.load(ROOT / "ews_analyst" / "policy.yaml")
     spec = AgentSpec(**{**spec.__dict__, "max_tool_calls": 2})
     tools = {"ews.read_state": ToolSpec("ews.read_state", lambda obligor_id: {}, "read")}
-    run = AgentRun(spec, human, SCOPE, tools)
+    run = AgentRun(spec, human, RESOLVE, tools)
     run.call("ews.read_state", obligor_id="a")
     run.call("ews.read_state", obligor_id="b")
     with pytest.raises(AgentBudgetExceeded):
@@ -161,12 +165,36 @@ def test_every_agent_policy_loads_and_prompts_have_front_matter() -> None:
 
 
 # ----------------------------------------------------------------- number binding ----
-def test_verify_numbers_accepts_formatting_and_ignores_dates_and_ids() -> None:
-    allowed = ["1.42", "₹1,50,000", "12.5%", "5000000"]
-    ok = "On 2026-09-30 case CASE-01 showed DSCR 1.42, ₹150000 or 12.5 percent; 5,000,000 paise."
-    assert verify_numbers(ok, allowed) == []
-    assert verify_numbers("The ratio improved to 1.50.", allowed) == ["1.50"]
-    assert verify_numbers("Revenue grew 18%", allowed) == ["18%"]
+def test_verify_numbers_accepts_only_facts_with_their_units() -> None:
+    facts = ["1.42", "₹1,50,000", "12.5%", "5000000", "2026-09-30", "CASE-01"]
+    ok = "On 2026-09-30 case CASE-01 showed DSCR 1.42, ₹150000 and 12.5 percent; 5,000,000 paise."
+    assert verify_numbers(ok, facts) == []
+    assert verify_numbers("The ratio improved to 1.50.", facts) == ["1.5"]
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Margin raised by 250bps.",  # digits glued to a unit
+        "Fee of ₹5crore applies.",
+        "Charge 60pct on the balance.",
+        "INR5000000 is due.",
+        "Growth of 1e9.",
+        "fell -35%",
+        "ratio .75 now",
+        "between 10-20 days",
+        "Late fee FEE-250000 applies; see LOSS-99999999.",  # ids are not exempt
+        "charge 9999-99-99 applies",  # nor date-shaped strings
+        "eighteen percent and two lakh",
+        "DSCR was 1.42 lakh",  # a scale word changes the value
+        "recovery 1.42%",  # a ratio restated as a percentage
+        "outstanding ₹5,000,000",  # paise restated as rupees
+        "१८ days",
+        "１８ days",
+    ],
+)
+def test_verify_numbers_rejects_ordinary_phrasing_bypasses(text: str) -> None:
+    assert verify_numbers(text, ["1.42", "2026-09-30", "5000000", "0.4000"]) != []
 
 
 def _llm(text: str | None = None, exc: Exception | None = None) -> Any:
@@ -182,14 +210,27 @@ def test_draft_uses_model_text_only_when_numbers_check_out() -> None:
     facts = {"value": "1.42", "threshold": "1.50"}
     tmpl = lambda f: f"value {f['value']} vs {f['threshold']}"  # noqa: E731
     kw = dict(use_case="u", instruction="i", facts=facts, template=tmpl)
-    good = draft_narrative(_llm("DSCR was 1.42 against 1.50."), **kw)  # type: ignore[arg-type]
+    good = draft_narrative(
+        _llm("The tested DSCR was 1.42 against the required 1.50 threshold."), **kw
+    )  # type: ignore[arg-type]
     assert good.source == "llm" and good.call_id == "LLM-1"
-    bad = draft_narrative(_llm("DSCR was 1.45 against 1.50."), **kw)  # type: ignore[arg-type]
+    bad = draft_narrative(
+        _llm("The tested DSCR was 1.45 against the required 1.50 threshold."), **kw
+    )  # type: ignore[arg-type]
     assert bad.source == "template" and bad.unsupported_numbers == ("1.45",)
     off = draft_narrative(_llm(exc=KillSwitchActive("off")), **kw)  # type: ignore[arg-type]
-    assert (
-        off.source == "template" and "kill" in (off.fallback_reason or "").lower()
-    ) or off.source == "template"
+    assert off.source == "template" and (off.fallback_reason or "").startswith("gateway:")
+    waive = draft_narrative(
+        _llm("The tested DSCR was 1.42 against 1.50 and the bank waives the covenant."), **kw
+    )  # type: ignore[arg-type]
+    assert waive.source == "template" and "concession" in (waive.fallback_reason or "")
+    no_clause = draft_narrative(
+        _llm("The tested DSCR was 1.42 against the required 1.50 threshold."),
+        required_phrases=("reserves all",),
+        **kw,
+    )  # type: ignore[arg-type]
+    assert no_clause.source == "template" and "omitted" in (no_clause.fallback_reason or "")
+    assert draft_narrative(_llm("x"), **kw).source == "template"  # type: ignore[arg-type]
     assert draft_narrative(None, **kw).source == "template"  # type: ignore[arg-type]
     assert draft_narrative(_llm("   "), **kw).source == "template"  # type: ignore[arg-type]
 
@@ -229,7 +270,7 @@ def test_covenant_agent_proposes_but_never_applies(cases, human) -> None:  # typ
     assert all(p.status == "pending" and p.proposer_kind == "agent" for p in case.proposals)
     letter = res.drafts["reservation_of_rights"]
     assert letter.source == "template" and "reserves all of its rights" in letter.text
-    assert not verify_numbers(letter.text, ["1.42", "1.50", "2026-09-30"])
+    assert not verify_numbers(letter.text, ["1.42", "1.50", "2026-09-30", ">=", "DSCR"])
 
 
 def test_covenant_agent_ignores_compliant_or_incomplete_results(cases, human) -> None:  # type: ignore[no-untyped-def]
@@ -270,10 +311,10 @@ def test_covenant_agent_uses_model_but_rejects_invented_figures(cases, human) ->
         case_id=case.case_id,
         covenant_name="DSCR",
         consequences=[],
-        llm=_llm("The DSCR of 1.42 missed 1.50 by 5% and the bank reserves its rights."),
+        llm=_llm("The DSCR of 1.42 missed 1.50 by 5% and the bank reserves all its rights."),
     )
     d = res.drafts["reservation_of_rights"]
-    assert d.source == "template" and "5%" in d.unsupported_numbers
+    assert d.source == "template" and "5pct" in d.unsupported_numbers
 
 
 def _ews_state(level: str) -> dict[str, Any]:
@@ -363,3 +404,95 @@ def test_recovery_agent_files_an_ots_proposal_with_exact_numbers(cases, human) -
         and p.payload["below_security_value"]
     )
     assert "recovery ratio of 0.4000" in res.drafts["summary"].text
+
+
+# ---------------------------------------------------- second-round audit regressions ----
+def test_F4_agent_can_only_propose_the_kinds_its_policy_lists(cases, human) -> None:  # type: ignore[no-untyped-def]
+    case = cases.open_case(CaseType.RECOVERY, "OBL-1", SCOPE, "x", sla_days=5)
+    run = _run("recovery_agent", human, _tools(cases))
+    for kind in (
+        "wilful_defaulter_classification",
+        "fraud_classification",
+        "limit_change",
+        "closure",
+        "waiver",
+    ):
+        with pytest.raises(AgentDenied):
+            run.call("case.propose", case_id=case.case_id, kind=kind, payload={})
+    assert case.proposals == []
+
+
+def test_F5_scope_is_checked_against_the_resource_named_in_each_call(cases, human) -> None:  # type: ignore[no-untyped-def]
+    east = ResourceScope("EAST", "MIDCORP", "OBL-9")
+    spec = AgentSpec.load(ROOT / "ews_analyst" / "policy.yaml")
+    tools = _tools(cases)
+    run = AgentRun(
+        spec, human, lambda name, kw: east if kw.get("case_id") == "C-EAST" else SCOPE, tools
+    )
+    case = cases.open_case(CaseType.EWS, "OBL-1", SCOPE, "x", sla_days=3)
+    run.call("case.propose", case_id=case.case_id, kind="consequence", payload={})
+    with pytest.raises(AgentDenied):
+        run.call("case.propose", case_id="C-EAST", kind="consequence", payload={})
+    bad_resolver = AgentRun(spec, human, lambda name, kw: kw["missing_key"], tools)
+    with pytest.raises(AgentDenied):
+        bad_resolver.call("case.propose", case_id="x", kind="consequence", payload={})
+
+
+def test_F6_identity_fields_are_refused_whatever_the_tool_is_labelled(cases, human) -> None:  # type: ignore[no-untyped-def]
+    tools = {"case.propose": ToolSpec("case.propose", cases.propose, "compute")}  # mislabelled
+    with pytest.raises(ValidationFailure):
+        _run("ews_analyst", human, tools)  # a propose tool must be registered as one
+    ok = _tools(cases)
+    run = _run("ews_analyst", human, ok)
+    with pytest.raises(AgentDenied):
+        run.call(
+            "case.propose", case_id="x", kind="consequence", payload={}, required_permission=None
+        )
+    read = {"ews.read_state": ToolSpec("ews.read_state", lambda obligor_id: {}, "read")}
+    run2 = _run("ews_analyst", human, read)
+    with pytest.raises(AgentDenied):
+        run2.call("ews.read_state", obligor_id="O", admin=True)  # undeclared parameter
+
+
+def test_F12_failed_calls_are_audited_budgeted_and_aborted_runs_still_finish(cases, human) -> None:  # type: ignore[no-untyped-def]
+    events: list[Any] = []
+
+    def boom(obligor_id: str) -> None:
+        raise RuntimeError("down")
+
+    tools = {"ews.read_state": ToolSpec("ews.read_state", boom, "read")}
+    run = _run("ews_analyst", human, tools, emit=lambda t, p: events.append(p))
+    for _ in range(15):
+        with pytest.raises(RuntimeError):
+            run.call("ews.read_state", obligor_id="O")
+    with pytest.raises(AgentBudgetExceeded):
+        run.call("ews.read_state", obligor_id="O")
+    assert sum(1 for c in run.calls if c.get("error") == "RuntimeError") == 15
+    with pytest.raises(RuntimeError):  # an agent that crashes is still audited exactly once
+        ews_analyst.run(
+            _run("ews_analyst", human, tools, emit=lambda t, p: events.append(p)),
+            obligor_id="O",
+            case_id="C",
+        )
+    assert len(events) == 1 and events[0].tool_calls[0]["error"] == "RuntimeError"
+    run.close()
+    first = run.finish({})
+    assert run.finish({"again": 1}) is first  # idempotent
+
+
+def test_F1_facts_reach_the_model_as_screened_data_blocks_not_as_context() -> None:
+    seen: dict[str, Any] = {}
+
+    class Spy:
+        def structured(self, **kw: Any) -> Any:
+            seen.update(kw)
+            return SimpleNamespace(parsed={"text": "x" * 50}, call_id="L")
+
+    draft_narrative(
+        Spy(),
+        use_case="u",
+        instruction="i",
+        facts={"covenant": "DSCR", "value": "1.42"},
+        template=lambda f: "t",
+    )
+    assert ("fact:value", "value: 1.42") in seen["data"] and "context" not in seen

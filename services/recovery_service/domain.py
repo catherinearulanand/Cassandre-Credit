@@ -105,20 +105,40 @@ class RecoveryService:
         self,
         case_id: str,
         *,
-        status: dict[str, Any],
+        outstanding_paise: int,
+        show_cause_issued_on: Any,
+        response_received_on: Any,
+        review_committee_ref: str,
         rationale: str,
         proposed_by: str,
         proposer_kind: str,
         on_behalf_of: str | None,
     ) -> str:
-        if status.get("status") != "MAY_CLASSIFY":
+        """The status is derived here from the evidence, never accepted from the caller, and the
+        evidence of each natural-justice step goes into the payload for the approver."""
+        if not review_committee_ref.strip():
+            raise ConflictError("review committee reference required", code="wilful_not_ready")
+        status = self.wilful_status(
+            outstanding_paise,
+            show_cause_issued_on=show_cause_issued_on,
+            response_received_on=response_received_on,
+            review_committee_confirmed=True,
+        )
+        if status["status"] != "MAY_CLASSIFY":
             raise ConflictError(
-                f"cannot propose designation: {status.get('explanation')}", code="wilful_not_ready"
+                f"cannot propose designation: {status['explanation']}", code="wilful_not_ready"
             )
         prop = self.cases.propose(
             case_id,
             kind="wilful_defaulter_classification",
-            payload={"rationale": rationale, "rule_version": status["rule_version"]},
+            payload={
+                "rationale": rationale,
+                "rule_version": status["rule_version"],
+                "outstanding_paise": outstanding_paise,
+                "show_cause_issued_on": str(show_cause_issued_on),
+                "response_received_on": str(response_received_on) if response_received_on else "",
+                "review_committee_ref": review_committee_ref,
+            },
             proposed_by=proposed_by,
             proposer_kind=proposer_kind,
             on_behalf_of=on_behalf_of,

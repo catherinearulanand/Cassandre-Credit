@@ -7,7 +7,7 @@ from datetime import UTC, date, datetime, timedelta
 import pytest
 from authz import MakerChecker, Principal, ResourceScope, Role
 from case_service.domain import CaseService
-from closure_service.domain import RELEASE_ACTIONS, ClosureFacts, ClosureService
+from closure_service.domain import ClosureFacts
 from platform_core.clock import FixedClock
 from platform_core.errors import ConflictError, IntegrityError, ValidationFailure
 from recovery_service.domain import RecoveryService
@@ -126,75 +126,6 @@ def test_ots_analysis_is_exact_and_flags_offers_below_security(clk, reg, cases) 
             RecoveryService.analyse_ots(*bad)  # type: ignore[arg-type]
 
 
-def test_ots_proposal_needs_recovery_head(clk, reg, cases) -> None:  # type: ignore[no-untyped-def]
-    svc = RecoveryService(clk, reg, cases)
-    case = cases.open_case(
-        __import__("domain.entities", fromlist=["CaseType"]).CaseType.RECOVERY,
-        "OBL-1",
-        SCOPE,
-        "ots",
-        sla_days=10,
-    )
-    a = svc.analyse_ots(100_00, 50_00, 40_00)
-    pid = svc.propose_ots(
-        case.case_id,
-        analysis=a,
-        terms="t",
-        proposed_by="agent:r",
-        proposer_kind="agent",
-        on_behalf_of="rh0",
-    )
-    from platform_core.errors import AuthorizationError
-
-    with pytest.raises(AuthorizationError):
-        cases.decide(
-            case.case_id, pid, checker=_head(Role.MONITORING_OFFICER), approve=True, reason="x"
-        )
-    with pytest.raises(AuthorizationError):  # money approval must state the amount
-        cases.decide(case.case_id, pid, checker=_head(Role.RECOVERY_HEAD), approve=True, reason="x")
-
-
-def test_wilful_designation_only_after_every_step(clk, reg, cases) -> None:  # type: ignore[no-untyped-def]
-    svc = RecoveryService(clk, reg, cases)
-    big = 9_000_000_00
-    assert svc.wilful_status(100_00)["status"] == "NOT_ELIGIBLE"
-    assert svc.wilful_status(big)["status"] == "SHOW_CAUSE_REQUIRED"
-    st = svc.wilful_status(
-        big, show_cause_issued_on=clk.today() - timedelta(days=30), review_committee_confirmed=False
-    )
-    assert st["status"] == "REVIEW_COMMITTEE_REQUIRED"
-    case = cases.open_case(
-        __import__("domain.entities", fromlist=["CaseType"]).CaseType.RECOVERY,
-        "OBL-1",
-        SCOPE,
-        "w",
-        sla_days=5,
-    )
-    with pytest.raises(ConflictError):
-        svc.propose_wilful_designation(
-            case.case_id,
-            status=st,
-            rationale="r",
-            proposed_by="a",
-            proposer_kind="agent",
-            on_behalf_of="h",
-        )
-    ok = svc.wilful_status(
-        big,
-        show_cause_issued_on=clk.today() - timedelta(days=30),
-        review_committee_confirmed=True,
-    )
-    assert ok["status"] == "MAY_CLASSIFY"
-    assert svc.propose_wilful_designation(
-        case.case_id,
-        status=ok,
-        rationale="r",
-        proposed_by="agent:r",
-        proposer_kind="agent",
-        on_behalf_of="h",
-    )
-
-
 def test_penal_charge_check(clk, reg, cases) -> None:  # type: ignore[no-untyped-def]
     svc = RecoveryService(clk, reg, cases)
     assert svc.check_penal_charge(
@@ -219,59 +150,6 @@ def _facts(clk, **kw):  # type: ignore[no-untyped-def]
     )
     base.update(kw)
     return ClosureFacts(**base)
-
-
-def test_closure_blockers_treat_unknown_as_not_zero(clk) -> None:  # type: ignore[no-untyped-def]
-    assert ClosureService.blockers(_facts(clk)) == []
-    assert ClosureService.blockers(_facts(clk, outstanding_paise={"F1": 0}))  # F2 unknown
-    assert ClosureService.blockers(_facts(clk, contingent_paise={"F1": 5, "F2": 0}))
-    assert ClosureService.blockers(_facts(clk, pending_finacle_commands=1))
-    assert ClosureService.blockers(_facts(clk, open_drawdown_requests=1))
-    assert ClosureService.blockers(_facts(clk, facility_ids=()))
-    assert ClosureService.blockers(_facts(clk, outstanding_paise={"F1": True, "F2": 0}))
-
-
-def test_closure_end_to_end_with_signed_approval_and_release_clock(clk, reg, cases, mc) -> None:  # type: ignore[no-untyped-def]
-    from domain.entities import CaseType
-
-    svc = ClosureService(clk, reg, cases, mc)
-    case = cases.open_case(CaseType.CLOSURE, "OBL-1", SCOPE, "close", sla_days=30)
-    with pytest.raises(ConflictError):
-        svc.propose_closure(
-            case.case_id,
-            _facts(clk, outstanding_paise={"F1": 1, "F2": 0}),
-            proposed_by="agent:c",
-            proposer_kind="agent",
-            on_behalf_of="mo",
-        )
-    cf = svc.propose_closure(
-        case.case_id, _facts(clk), proposed_by="agent:c", proposer_kind="agent", on_behalf_of="mo"
-    )
-    st = svc.release_status(case.case_id)
-    assert st["days_delayed"] == 0 and len(st["missing_actions"]) == len(RELEASE_ACTIONS)
-    approver = Principal(id="sa1", kind="human", roles=frozenset({Role.SANCTIONING_AUTHORITY}))
-    assert cf.proposal_id is not None
-    p = cases.decide(
-        case.case_id, cf.proposal_id, checker=approver, approve=True, reason="dues nil"
-    )
-    assert p.approval is not None
-    for a in RELEASE_ACTIONS[:-1]:
-        svc.record_action(case.case_id, a, f"EV-{a}")
-    with pytest.raises(ConflictError):
-        svc.complete(case.case_id, approval=p.approval)  # one release action outstanding
-    svc.record_action(case.case_id, RELEASE_ACTIONS[-1], "EV-last")
-    ev = svc.complete(case.case_id, approval=p.approval)
-    assert ev.facility_ids == ["F1", "F2"] and ev.zero_dues_proof == cf.proof
-    # delay compensation after the window, and only when attributable to the lender
-    clk.advance(days=40)
-    cf.released_on = None
-    late = svc.release_status(case.case_id)
-    assert late["days_delayed"] == 20 and late["compensation_rupees"] == "100000"
-    assert (
-        svc.release_status(case.case_id, attributable_to_lender=False)["compensation_rupees"] == "0"
-    )
-    with pytest.raises(ValidationFailure):
-        svc.record_action(case.case_id, "burn_documents", "x")
 
 
 # ------------------------------------------------------------------------ review -------

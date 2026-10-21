@@ -18,3 +18,4 @@ human_checkpoint:
   role: cad_checker
   rule: "checker must differ from the drafting identity"
 kill_switch: model_gateway.use_case.sanction_compiler.extract
+propose_kinds: []

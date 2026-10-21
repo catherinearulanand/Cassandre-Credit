@@ -147,3 +147,17 @@ def test_non_india_provider_refused(clock) -> None:  # type: ignore[no-untyped-d
     gw = _gw(clock)
     gw.cfg["providers"]["anthropic_private"]["region"] = "US"
     assert gw.complete(_req()).used_fallback  # primary refused by residency policy
+
+
+def test_F1_context_never_reaches_a_remote_provider(clock) -> None:  # type: ignore[no-untyped-def]
+    seen: list[dict] = []  # type: ignore[type-arg]
+
+    class Spy(ScriptedProvider):
+        def complete(self, **kw):  # type: ignore[no-untyped-def,override]
+            seen.append(dict(kw["request"].context))
+            return super().complete(**kw)
+
+    frontier = Spy([json.dumps({"letter": "ok"})])
+    gw = _gw(clock, anthropic_private=frontier)
+    gw.complete(_req(context={"secret": "PAN ABCPK1234F"}))
+    assert seen == [{}], "structured context is unscreened and must not leave the process"
