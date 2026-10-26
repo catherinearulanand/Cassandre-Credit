@@ -36,8 +36,7 @@ python -m tools.pricing_model           # cost-to-serve and price corridor (plac
 
 All accuracy figures come from synthetic data with exact ground truth. They show that the pipeline logic is
 correct and that its controls hold under controlled damage. They do not show performance on real bank scans,
-real sanction letters or real defaults. Repeat every report on consented real samples before any claim to a
-customer or regulator.
+real sanction letters or real defaults. Need to test on real data before going to any customer or regulator. 
 
 ## Layout
 
