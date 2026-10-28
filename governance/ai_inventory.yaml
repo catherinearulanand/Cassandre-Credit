@@ -125,3 +125,15 @@ entries:
     card: docs/model-cards/ocr-pipeline.md
     llm_use_cases: [ocr.structure_financials]
     validation_status: not_validated
+  - id: prototype.covenant_extract
+    kind: llm_use_case
+    owner: credit-administration
+    risk_tier: 2
+    purpose: Extract cited candidate covenants from synthetic OCR rows for demonstrations
+    data_class: public
+    human_checkpoint: CAD checker reviews every candidate; no candidate becomes an active control
+    kill_switch: model_gateway.use_case.prototype.covenant_extract
+    card: docs/model-cards/agents.md
+    llm_use_cases: [prototype.covenant_extract]
+    validation_status: not_validated
+    status: prototype_only

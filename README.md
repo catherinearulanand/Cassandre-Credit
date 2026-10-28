@@ -18,11 +18,11 @@ python -m tools.pricing_model           # cost-to-serve and price corridor (plac
 | Foundations: money, time, ids, bitemporal, hashing, events, outbox, contracts | Built | `tests/unit`, `tests/architecture` |
 | Finacle simulator and adapter (ordered idempotent commands, verified approvals, reconciliation) | Built, audited | `tests/integration/test_finacle_roundtrip.py`, `docs/AUDIT_LOG.md` |
 | Security: field encryption, signing, audit chain, redaction, injection screen, authz, maker-checker | Built, audited | `docs/SECURITY_MODEL.md` |
-| Model gateway (routing, data classes, redaction, budgets, kill switch) | Built; providers are adapters, no live model attached | `tests/unit/test_model_gateway.py` |
+| Model gateway (routing, data classes, redaction, budgets, kill switch) | Built; Groq free-tier prototype adapter added for synthetic covenant extraction, awaiting the user's key | `tests/unit/test_model_gateway.py`, `tests/unit/test_groq_prototype.py` |
 | Rules engine and 18 rule packs | Built; **every pack is `unverified`** and must be checked against RBI text before UAT | `rules/CHANGELOG.md` |
 | Covenant DSL and test engine | Built | 13,540 simulated tests agree with an independent calculator |
 | CTS, limit tree, drawing power, drawdown gate, cases | Built | simulation report, property tests |
-| Sanction Compiler | Grammar path built; **LLM path for negotiated agreements not built or measured** | `docs/LLM_DECISION.md` |
+| Sanction Compiler | Grammar path built; synthetic Groq covenant-proposal bridge built; **real negotiated-agreement path still requires a self-hosted model and measurement** | `docs/LLM_DECISION.md` |
 | OCR pipeline for financial statements | Built; **v3 release gate currently FAILS on coverage** (zero wrong figures auto-accepted, but layout B is read at 30%). See `docs/OCR_ACCURACY.md` | `reports/ocr_accuracy.json` |
 | EWS and breach forecast models | Built; validated out of time on **synthetic** data only | `reports/simulation_report.json` |
 | Postgres, Kafka, Neo4j, Temporal, Feast adapters; UI; real Finacle | **Not built** (ports and in-memory adapters exist, ADR 0002) | |

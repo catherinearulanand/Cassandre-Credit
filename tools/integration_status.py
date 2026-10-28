@@ -101,15 +101,11 @@ def probe_finacle() -> Row:
 
 
 def probe_llm() -> Row:
-    import yaml
-
-    cfg = yaml.safe_load(
-        (ROOT / "services/model_gateway/config/routes.yaml").read_text(encoding="utf-8")
-    )
+    have = bool(os.environ.get("GROQ_API_KEY"))
     return Row(
-        "AI", "LLM providers (self-hosted and frontier)", "NOT BUILT",
-        "gateway, redaction, budgets and kill switch are real; no provider is attached, so drafting uses deterministic templates",
-        f"{len(cfg['use_cases'])} use cases routed; 0 providers connected",
+        "AI", "Groq free-tier prototype LLM", "CONFIGURED" if have else "AWAITING KEY",
+        "OpenAI-compatible adapter and cited covenant-extraction bridge; synthetic public data only because processing is outside India",
+        "GROQ_API_KEY set" if have else "set GROQ_API_KEY; real borrower documents remain blocked",
     )  # fmt: skip
 
 

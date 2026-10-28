@@ -10,3 +10,4 @@ __pycache__/
 reports/_cache/
 *.egg-info/
 .venv-paddle/
+.uv-cache/

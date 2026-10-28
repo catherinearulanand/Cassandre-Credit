@@ -1,0 +1,25 @@
+# Prototype-only routing. Never use this file for real borrower documents.
+# Groq's free API is useful for a synthetic demonstration, but its data location is the US.
+providers:
+  groq_free:
+    kind: openai_compatible
+    base_url: "https://api.groq.com/openai/v1"
+    api_key_env: GROQ_API_KEY
+    require_api_key: true
+    strict_json_schema: false
+    self_hosted: false
+    region: US
+    zero_retention: true
+
+use_cases:
+  prototype.covenant_extract:
+    data_class: public
+    allow_cross_border_synthetic: true
+    primary: { provider: groq_free, model: "openai/gpt-oss-20b" }
+    # A small positive guard avoids treating a zero-cost route as already exhausted.
+    # The pricing table below still records Groq free-tier calls as zero cost.
+    budget: { requests_per_minute: 5, max_tokens_per_call: 4000, daily_cost_inr: 0.01 }
+
+pricing_inr_per_1k_tokens:
+  openai/gpt-oss-20b: { in: 0, out: 0 }
+  default: { in: 0, out: 0 }

@@ -2,6 +2,9 @@
 
 **Status:** development. Not independently validated. The LLM drafting path is not measured; the deterministic templates are what ships.
 
+The optional Groq free-tier route is a synthetic-only prototype for candidate covenant extraction.
+It is not enabled for borrower data, does not activate controls and does not change this validation status.
+
 ## Common design (`agents/runtime.py`)
 An agent acts for one named human and may call only tools on its allow-list. It has no write tools: it can
 *propose*, and only the proposal kinds listed in its policy (`propose_kinds`). The runtime stamps each proposal

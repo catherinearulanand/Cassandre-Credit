@@ -328,7 +328,12 @@ class ModelGateway:
     def _apply_data_policy(
         self, req: LlmRequest, route: dict[str, Any], pcfg: dict[str, Any]
     ) -> _Redactor:
-        if pcfg.get("region") != "IN":
+        cross_border_synthetic = (
+            req.data_class == "public"
+            and bool(req.context.get("synthetic"))
+            and bool(route.get("allow_cross_border_synthetic"))
+        )
+        if pcfg.get("region") != "IN" and not cross_border_synthetic:
             raise PolicyViolation("provider outside India region")
         if not pcfg.get("zero_retention"):
             raise PolicyViolation("provider without zero-retention arrangement")

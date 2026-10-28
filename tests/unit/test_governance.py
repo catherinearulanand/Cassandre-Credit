@@ -12,6 +12,11 @@ ENTRIES = {e["id"]: e for e in INV["entries"]}
 ROUTES = yaml.safe_load(
     (ROOT / "services" / "model_gateway" / "config" / "routes.yaml").read_text(encoding="utf-8")
 )
+PROTOTYPE_ROUTES = yaml.safe_load(
+    (ROOT / "services" / "model_gateway" / "config" / "routes.prototype.yaml").read_text(
+        encoding="utf-8"
+    )
+)
 
 
 def test_every_agent_policy_has_an_inventory_entry_with_the_same_kill_switch() -> None:
@@ -35,7 +40,7 @@ def test_every_agent_policy_has_an_inventory_entry_with_the_same_kill_switch() -
 
 
 def test_every_gateway_use_case_is_inventoried_and_every_inventoried_one_is_routed() -> None:
-    routed = set(ROUTES["use_cases"])
+    routed = set(ROUTES["use_cases"]) | set(PROTOTYPE_ROUTES["use_cases"])
     listed = {u for e in INV["entries"] for u in e.get("llm_use_cases", [])}
     assert routed == listed, routed ^ listed
 

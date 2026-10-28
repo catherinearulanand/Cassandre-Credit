@@ -52,3 +52,14 @@ gateway with a deterministic fallback, and tested for policy, but its extraction
 agreements is **not measured**. The first task for the pilot is to run the self-hosted model on a golden
 set of consented agreements and publish the same style of report as the OCR one, including the share of
 fields that still need a human.
+
+## Free API prototype route
+
+`services/model_gateway/config/routes.prototype.yaml` connects Groq's free API through the existing
+OpenAI-compatible gateway adapter. It uses `openai/gpt-oss-20b` and schema-constrained JSON to turn
+PaddleOCR rows into **candidate** covenants with row-level citations. The route requires all three
+conditions: `data_class=public`, an explicit `synthetic=true` context flag, and the route's
+`allow_cross_border_synthetic` permission. It therefore cannot accept confidential or borrower-raw
+documents. Groq states that inference is eligible for Zero Data Retention, but its data location is the
+United States. This route is for demonstrations only; an Indian lender pilot still requires a
+self-hosted/approved India-resident model and a measured golden-set evaluation.

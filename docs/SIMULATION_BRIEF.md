@@ -31,8 +31,9 @@ and every step on screen says which.
 - **Storage and messaging**: in-memory stores and an in-process event log stand in for Postgres and Kafka.
 - **Keys**: software keys stand in for an HSM.
 
-**Not built at all:** an LLM (so drafting uses deterministic templates), the hosted PaddleOCR call
-(adapter written, waiting for your key), SSO/MFA/mTLS/SIEM, Temporal/Neo4j/Feast, the web UI and API.
+**Not built for production:** a bank-approved/self-hosted LLM (so drafting still uses deterministic
+templates), the hosted PaddleOCR call (adapter written, waiting for your key), SSO/MFA/mTLS/SIEM,
+Temporal/Neo4j/Feast, the web UI and API. A free Groq adapter exists only for synthetic demonstrations.
 
 **The honest headline numbers (all synthetic):**
 - PaddleOCR on 6 synthetic pages (135 figures): 118 correct, 101 passed straight through, **0 wrong
@@ -63,7 +64,7 @@ credential you will supply; **NOT BUILT** means nothing exists behind the port.
 | OCR | PaddleOCR (local worker) | **CONNECTED** | PP-OCR models in an isolated interpreter (paddleocr-local) | read ['Total', 'Equity', '500.00'] |
 | OCR | PaddleOCR hosted API | **AWAITING KEY** | adapter written (synthetic data only: the service is outside India); response shape unverified until a key is used | no key in the environment |
 | Core banking | Finacle | **SIMULATED** | simulators/finacle_sim (in-process); the adapter in front of it is the production code | simulator answered HTTP 200 |
-| AI | LLM providers (self-hosted and frontier) | **NOT BUILT** | gateway, redaction, budgets and kill switch are real; no provider is attached, so drafting uses deterministic templates | 7 use cases routed; 0 providers connected |
+| AI | Groq free-tier prototype LLM | **AWAITING KEY** | OpenAI-compatible adapter and cited covenant-extraction bridge; synthetic public data only because processing is outside India | set `GROQ_API_KEY`; real borrower documents remain blocked |
 | Platform | Rules engine, 20 rule packs | **CONNECTED** | production code; pack contents are unverified against RBI text | rules-test passes |
 | Platform | Covenant engine, CTS, limits, drawing power, drawdown gate | **CONNECTED** | production code on synthetic input | agrees with independent calculators |
 | Platform | SMA/ECL, RFA, EWS, calendar, stressed assets, recovery, closure, review | **CONNECTED** | production domain services on synthetic input | tests/unit, tests/integration |
@@ -158,6 +159,6 @@ Each journey is a real run; the steps are in `reports/demo_story.json` and on th
 - The OCR release gate is failing on the larger earlier corpus; coverage on a second layout is the weakness.
 - The breach forecast shows no skill beyond a simple headroom rule; the early-warning model is only
   modestly better than counting fired rules.
-- No LLM is connected, so nothing about LLM drafting quality is measured.
+- No bank-approved production LLM is connected, and neither drafting nor covenant-extraction quality has been measured on real documents.
 - Nothing is independently validated (see `docs/VALIDATION_PACK.md`).
 - Rule packs are unverified against RBI text.

@@ -45,13 +45,27 @@ class DeterministicLocalProvider:
 
 
 class OpenAICompatibleProvider:
-    """vLLM (self-hosted open-weight models) via the OpenAI-compatible API."""
+    """An OpenAI-compatible chat-completions endpoint.
+
+    The same adapter serves self-hosted vLLM and explicitly configured prototype providers.
+    Provider policy (data class, region and retention) remains in ``ModelGateway``; this class
+    only handles the HTTP contract.
+    """
 
     def __init__(
-        self, base_url: str, client: httpx.Client | None = None, api_key_env: str = "VLLM_API_KEY"
+        self,
+        base_url: str,
+        client: httpx.Client | None = None,
+        api_key_env: str = "VLLM_API_KEY",
+        *,
+        require_api_key: bool = False,
+        strict_json_schema: bool = True,
     ) -> None:
         self.client = client or httpx.Client(base_url=base_url, timeout=60.0)
+        self.api_key_env = api_key_env
         self.api_key = os.environ.get(api_key_env, "")
+        self.require_api_key = require_api_key
+        self.strict_json_schema = strict_json_schema
 
     def complete(
         self,
@@ -63,6 +77,8 @@ class OpenAICompatibleProvider:
         output_schema: dict[str, Any] | None,
         request: LlmRequest,
     ) -> ProviderReply:
+        if self.require_api_key and not self.api_key:
+            raise RuntimeError(f"{self.api_key_env} is not set")
         body: dict[str, Any] = {
             "model": model,
             "max_tokens": max_tokens,
@@ -72,7 +88,11 @@ class OpenAICompatibleProvider:
         if output_schema:
             body["response_format"] = {
                 "type": "json_schema",
-                "json_schema": {"name": "output", "schema": output_schema, "strict": True},
+                "json_schema": {
+                    "name": "output",
+                    "schema": output_schema,
+                    "strict": self.strict_json_schema,
+                },
             }
         r = self.client.post(
             "/chat/completions",
